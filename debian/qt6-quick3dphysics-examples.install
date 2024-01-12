@@ -1,0 +1,8 @@
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3dphysics/cannon/example_cannon
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3dphysics/charactercontroller/example_charactercontroller
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3dphysics/compoundshapes/example_compoundshapes
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3dphysics/customshapes/example_customshapes
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3dphysics/impeller/example_impeller
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3dphysics/mass/example_mass
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3dphysics/material/example_material
+usr/lib/${DEB_HOST_MULTIARCH}/qt6/examples/quick3dphysics/simple/example_simple

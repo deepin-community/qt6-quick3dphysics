@@ -1,0 +1,3 @@
+# libQt6Quick3DPhysicsHelpers6 is a private lib installed in a public path
+qml6-module-qtquick3d-physics: package-name-doesnt-match-sonames libQt6Quick3DPhysicsHelpers6
+qml6-module-qtquick3d-physics: no-symbols-control-file usr/lib/*/libQt6Quick3DPhysicsHelpers.so.6.*

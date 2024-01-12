@@ -1,0 +1,9 @@
+# Lintian gives a false positive for the globbing order.
+# See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=970274
+qt6-quick3dphysics source: globbing-patterns-out-of-order examples/* *.qdoc examples/quick3dphysics/cannon/doc/src/qtquick3dphysics-examples-cannon.qdoc
+qt6-quick3dphysics source: globbing-patterns-out-of-order examples/* *.qdoc examples/quick3dphysics/compoundshapes/doc/src/qtquick3dphysics-examples-compoundshapes.qdoc
+qt6-quick3dphysics source: globbing-patterns-out-of-order examples/* *.qdoc examples/quick3dphysics/customshapes/doc/src/qtquick3dphysics-examples-customshapes.qdoc
+qt6-quick3dphysics source: globbing-patterns-out-of-order examples/* *.qdoc examples/quick3dphysics/impeller/doc/src/qtquick3dphysics-examples-impeller.qdoc
+qt6-quick3dphysics source: globbing-patterns-out-of-order examples/* *.qdoc examples/quick3dphysics/mass/doc/src/qtquick3dphysics-examples-mass.qdoc
+qt6-quick3dphysics source: globbing-patterns-out-of-order examples/* *.qdoc examples/quick3dphysics/material/doc/src/qtquick3dphysics-examples-material.qdoc
+qt6-quick3dphysics source: globbing-patterns-out-of-order examples/* *.qdoc examples/quick3dphysics/simple/doc/src/qtquick3dphysics-examples-simple.qdoc
