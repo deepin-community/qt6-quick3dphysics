@@ -1,5 +1,121 @@
-template-repository (1.0-1) unstable; urgency=medium
+qt6-quick3dphysics (6.6.1-2) experimental; urgency=medium
 
-  * Initial release
+  [ Patrick Franz ]
+  * Update symbols from buildlogs.
 
- -- Tsic404 <liuheng@deepin.org>  Sat, 28 Jan 2023 13:46:49 +0800
+ -- Patrick Franz <deltaone@debian.org>  Tue, 09 Jan 2024 20:19:48 +0100
+
+qt6-quick3dphysics (6.6.1-1) experimental; urgency=medium
+
+  [ Simon Quigley ]
+  * New upstream release.
+    - Bump build dependencies to 6.6.1.
+    - Update the copyright file.
+  * Add my name to Uploaders.
+
+  [ Patrick Franz ]
+  * Update list of installed files.
+  * Update symbols from buildlogs.
+  * Remove binary package libqt6quick3dphysicshelpers6.
+
+ -- Patrick Franz <deltaone@debian.org>  Wed, 20 Dec 2023 20:19:07 +0100
+
+qt6-quick3dphysics (6.4.2-6) unstable; urgency=medium
+
+  * Team upload to unstable.
+  * Fix architecture list for examples packages, I did not realize this source
+    package is limited to a certain set of them.
+
+ -- Lisandro Damián Nicanor Pérez Meyer <lisandro@debian.org>  Tue, 01 Aug 2023 18:26:12 -0300
+
+qt6-quick3dphysics (6.4.2-5) unstable; urgency=medium
+
+  * Team upload to unstable.
+
+ -- Lisandro Damián Nicanor Pérez Meyer <lisandro@debian.org>  Tue, 01 Aug 2023 14:19:42 -0300
+
+qt6-quick3dphysics (6.4.2-4) experimental; urgency=medium
+
+  * Team upload.
+  * Add examples package (Closes: #1042311).
+
+ -- Lisandro Damián Nicanor Pérez Meyer <lisandro@debian.org>  Sat, 29 Jul 2023 12:28:21 -0300
+
+qt6-quick3dphysics (6.4.2-3) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Pass QT_HOST_PATH to cmake in cross-builds, thx to Helmut Grohne.
+
+ -- Patrick Franz <deltaone@debian.org>  Fri, 23 Jun 2023 00:55:40 +0200
+
+qt6-quick3dphysics (6.4.2-2) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Add libqt6quick3dphysics6 and libqt6quick3dphysicshelpers6 as
+    dependencies to qt6-quick3dphysics-dev (Closes: #1035459).
+
+ -- Patrick Franz <deltaone@debian.org>  Sat, 06 May 2023 14:24:43 +0200
+
+qt6-quick3dphysics (6.4.2-1) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Switch to the official 6.4.2 tarball, the tarball is the same.
+  * Enable link time optimization.
+
+ -- Patrick Franz <deltaone@debian.org>  Sat, 28 Jan 2023 18:19:25 +0100
+
+qt6-quick3dphysics (6.4.2~rc1-2) unstable; urgency=medium
+
+  [ Patrick Franz ]
+  * Upload to unstable.
+
+ -- Patrick Franz <deltaone@debian.org>  Fri, 30 Dec 2022 16:58:43 +0100
+
+qt6-quick3dphysics (6.4.2~rc1-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * New upstream release (6.4.2).
+  * Bump Qt B-Ds to 6.4.2.
+  * Bump Standards-Version to 4.6.2 (no changes needed).
+  * Fix dependencies for qt6-quick3dphysics-dev.
+
+ -- Patrick Franz <deltaone@debian.org>  Tue, 27 Dec 2022 22:27:15 +0100
+
+qt6-quick3dphysics (6.4.1-3) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * Adjust build-dependencies.
+
+ -- Patrick Franz <deltaone@debian.org>  Thu, 15 Dec 2022 00:11:41 +0100
+
+qt6-quick3dphysics (6.4.1-2) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * Limit build to certain architectures as qtquick3dphysics does not
+    build on all architectures.
+
+ -- Patrick Franz <deltaone@debian.org>  Sun, 27 Nov 2022 02:10:52 +0100
+
+qt6-quick3dphysics (6.4.1-1) experimental; urgency=medium
+
+  [ Patrick Franz ]
+  * Update symbols from buildlogs.
+  * New upstream release (6.4.1).
+  * Bump Qt B-Ds to 6.4.1.
+  * New binary package qt6-quick3dphysics-dev-tools.
+  * Update d/copyright.
+
+ -- Patrick Franz <deltaone@debian.org>  Thu, 24 Nov 2022 02:21:41 +0100
+
+qt6-quick3dphysics (6.4.0-2) experimental; urgency=medium
+
+  * Team upload.
+  * Update symbols files from the logs of buildds.
+
+ -- Pino Toscano <pino@debian.org>  Fri, 21 Oct 2022 20:36:14 +0200
+
+qt6-quick3dphysics (6.4.0-1) experimental; urgency=medium
+
+  * Initial release. (Closes: #1021683)
+
+ -- Patrick Franz <deltaone@debian.org>  Sun, 16 Oct 2022 03:19:57 +0200

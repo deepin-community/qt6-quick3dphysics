@@ -1,0 +1,6 @@
+# SymbolsHelper-Confirmed: 6.6.1 amd64
+libQt6Quick3DPhysicsHelpers.so.6 libqt6quick3dphysicshelpers6 #MINVER#
+* Build-Depends-Package: qt6-quick3dphysics-dev
+ Qt_6@Qt_6 6.6.1
+ Qt_6_PRIVATE_API@Qt_6_PRIVATE_API 6.6.1
+ _Z44qml_register_types_QtQuick3D_Physics_Helpersv@Qt_6 6.6.1
