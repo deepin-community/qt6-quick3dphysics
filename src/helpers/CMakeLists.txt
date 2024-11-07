@@ -19,11 +19,14 @@ qt_internal_add_qml_module(Quick3DPhysicsHelpers
     PAST_MAJOR_VERSIONS 1
     DEFINES
         QT_BUILD_QUICK3DPHYSICSHELPERS_LIB
+    DEPENDENCIES
+        QtQuick3D
     LIBRARIES
         Qt::Quick3DPhysics
     PUBLIC_LIBRARIES
         Qt::Qml
         Qt::Quick
         Qt::Quick3D
+    NO_GENERATE_CPP_EXPORTS
 )
 

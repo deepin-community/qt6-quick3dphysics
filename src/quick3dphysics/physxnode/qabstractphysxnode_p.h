@@ -40,7 +40,8 @@ enum class DebugDrawBodyType {
     DynamicAwake = 1,
     DynamicSleeping = 2,
     Trigger = 3,
-    Unknown = 4
+    Character = 4,
+    Unknown = 5
 };
 
 /*
@@ -66,6 +67,7 @@ public:
     void createMaterialFromQtMaterial(QPhysXWorld *physX, QPhysicsMaterial *qtMaterial);
     virtual void markDirtyShapes();
     virtual void rebuildDirtyShapes(QPhysicsWorld *, QPhysXWorld *);
+    virtual void updateFilters();
 
     virtual void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) = 0;
     virtual void cleanup(QPhysXWorld *);
@@ -77,6 +79,9 @@ public:
 
     bool shapesDirty() const;
     void setShapesDirty(bool dirty);
+
+    bool filtersDirty() const;
+    void setFiltersDirty(bool dirty);
 
     QVector<physx::PxShape *> shapes;
     physx::PxMaterial *material = nullptr;

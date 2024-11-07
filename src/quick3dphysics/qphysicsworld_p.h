@@ -36,6 +36,9 @@ class PxRigidActor;
 class PxRigidStatic;
 class PxCooking;
 class PxControllerManager;
+class PxConvexMesh;
+class PxTriangleMesh;
+class PxHeightField;
 }
 
 QT_BEGIN_NAMESPACE
@@ -73,6 +76,14 @@ class Q_QUICK3DPHYSICS_EXPORT QPhysicsWorld : public QObject, public QQmlParserS
     Q_PROPERTY(float maximumTimestep READ maximumTimestep WRITE setMaximumTimestep NOTIFY
                        maximumTimestepChanged REVISION(6, 5))
     Q_PROPERTY(QQuick3DNode *scene READ scene WRITE setScene NOTIFY sceneChanged REVISION(6, 5))
+    Q_PROPERTY(int numThreads READ numThreads WRITE setNumThreads NOTIFY numThreadsChanged
+                       REVISION(6, 7))
+    Q_PROPERTY(bool reportKinematicKinematicCollisions READ reportKinematicKinematicCollisions WRITE
+                       setReportKinematicKinematicCollisions NOTIFY
+                               reportKinematicKinematicCollisionsChanged FINAL REVISION(6, 7))
+    Q_PROPERTY(bool reportStaticKinematicCollisions READ reportStaticKinematicCollisions WRITE
+                       setReportStaticKinematicCollisions NOTIFY
+                               reportStaticKinematicCollisionsChanged FINAL REVISION(6, 7))
 
     QML_NAMED_ELEMENT(PhysicsWorld)
 
@@ -101,10 +112,21 @@ public:
     static void registerNode(QAbstractPhysicsNode *physicsNode);
     static void deregisterNode(QAbstractPhysicsNode *physicsNode);
 
+    void registerContact(QAbstractPhysicsNode *sender, QAbstractPhysicsNode *receiver,
+                         const QVector<QVector3D> &positions, const QVector<QVector3D> &impulses,
+                         const QVector<QVector3D> &normals);
+
     Q_REVISION(6, 5) QQuick3DNode *viewport() const;
     void setHasIndividualDebugDraw();
     physx::PxControllerManager *controllerManager();
     Q_REVISION(6, 5) QQuick3DNode *scene() const;
+    Q_REVISION(6, 7) int numThreads() const;
+    Q_REVISION(6, 7) bool reportKinematicKinematicCollisions() const;
+    Q_REVISION(6, 7)
+    void setReportKinematicKinematicCollisions(bool newReportKinematicKinematicCollisions);
+    Q_REVISION(6, 7) bool reportStaticKinematicCollisions() const;
+    Q_REVISION(6, 7)
+    void setReportStaticKinematicCollisions(bool newReportStaticKinematicCollisions);
 
 public slots:
     void setGravity(QVector3D gravity);
@@ -118,6 +140,7 @@ public slots:
     Q_REVISION(6, 5) void setMinimumTimestep(float minTimestep);
     Q_REVISION(6, 5) void setMaximumTimestep(float maxTimestep);
     Q_REVISION(6, 5) void setScene(QQuick3DNode *newScene);
+    Q_REVISION(6, 7) void setNumThreads(int newNumThreads);
 
 signals:
     void gravityChanged(QVector3D gravity);
@@ -133,6 +156,9 @@ signals:
     void simulateFrame(float minTimestep, float maxTimestep);
     Q_REVISION(6, 5) void frameDone(float timestep);
     Q_REVISION(6, 5) void sceneChanged();
+    Q_REVISION(6, 7) void numThreadsChanged();
+    Q_REVISION(6, 7) void reportKinematicKinematicCollisionsChanged();
+    Q_REVISION(6, 7) void reportStaticKinematicCollisionsChanged();
 
 private:
     void frameFinished(float deltaTime);
@@ -145,30 +171,52 @@ private:
     void disableDebugDraw();
     void matchOrphanNodes();
     void findPhysicsNodes();
+    void emitContactCallbacks();
+
+    struct BodyContact
+    {
+        QAbstractPhysicsNode *sender = nullptr;
+        QAbstractPhysicsNode *receiver = nullptr;
+        QVector<QVector3D> positions;
+        QVector<QVector3D> impulses;
+        QVector<QVector3D> normals;
+    };
 
     struct DebugModelHolder
     {
         QQuick3DModel *model = nullptr;
         QQuick3DGeometry *geometry = nullptr;
         QVector3D data;
+        void *ptr = nullptr;
 
-        const QVector3D &halfExtents() const { return data; }
-        void setHalfExtents(const QVector3D &halfExtents) { data = halfExtents; }
+        void releaseMeshPointer();
 
-        float radius() const { return data.x(); }
-        void setRadius(float radius) { data.setX(radius); }
+        const QVector3D &halfExtents() const;
+        void setHalfExtents(const QVector3D &halfExtents);
 
-        float heightScale() const { return data.x(); }
-        void setHeightScale(float heightScale) { data.setX(heightScale); }
+        float radius() const;
+        void setRadius(float radius);
 
-        float halfHeight() const { return data.y(); }
-        void setHalfHeight(float halfHeight) { data.setY(halfHeight); }
+        float heightScale() const;
+        void setHeightScale(float heightScale);
 
-        float rowScale() const { return data.y(); }
-        void setRowScale(float rowScale) { data.setY(rowScale); }
+        float halfHeight() const;
+        void setHalfHeight(float halfHeight);
 
-        float columnScale() const { return data.z(); }
-        void setColumnScale(float columnScale) { data.setZ(columnScale); }
+        float rowScale() const;
+        void setRowScale(float rowScale);
+
+        float columnScale() const;
+        void setColumnScale(float columnScale);
+
+        physx::PxConvexMesh *getConvexMesh();
+        void setConvexMesh(physx::PxConvexMesh *mesh);
+
+        physx::PxTriangleMesh *getTriangleMesh();
+        void setTriangleMesh(physx::PxTriangleMesh *mesh);
+
+        physx::PxHeightField *getHeightField();
+        void setHeightField(physx::PxHeightField *hf);
     };
 
     QList<QAbstractPhysXNode *> m_physXBodies;
@@ -179,6 +227,7 @@ private:
             m_collisionShapeDebugModels;
     QSet<QAbstractPhysicsNode *> m_removedPhysicsNodes;
     QMutex m_removedPhysicsNodesMutex;
+    QList<BodyContact> m_registeredContacts;
 
     QVector3D m_gravity = QVector3D(0.f, -981.f, 0.f);
     float m_typicalLength = 100.f; // 100 cm
@@ -210,6 +259,9 @@ private:
     QThread m_workerThread;
     QQuick3DNode *m_scene = nullptr;
     bool m_inDesignStudio = false;
+    int m_numThreads = -1;
+    bool m_reportKinematicKinematicCollisions = false;
+    bool m_reportStaticKinematicCollisions = false;
 };
 
 QT_END_NAMESPACE

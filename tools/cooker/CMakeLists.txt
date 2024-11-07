@@ -1,5 +1,5 @@
 # Copyright (C) 2022 The Qt Company Ltd.
-# SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only WITH Qt-GPL-exception-1.0
+# SPDX-License-Identifier: BSD-3-Clause
 
 set(target_name cooker)
 qt_internal_add_app(${target_name}
@@ -18,7 +18,7 @@ target_include_directories(${target_name} SYSTEM
     ../../src/3rdparty/PhysX/include
     ../../src/3rdparty/PhysX/pxshared/include
 )
-if (UNIX)
+if (UNIX OR MINGW)
     # Needed for PxPreprocessor.h error
     if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
         qt_internal_extend_target(${target_name} DEFINES _DEBUG)
