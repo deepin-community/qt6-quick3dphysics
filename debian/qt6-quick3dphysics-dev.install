@@ -45,3 +45,6 @@ usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dphysics.pri
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/mkspecs/modules/qt_lib_quick3dphysicshelpers.pri
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/modules/Quick3DPhysics.json
 usr/lib/${DEB_HOST_MULTIARCH}/qt6/modules/Quick3DPhysicsHelpers.json
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6BundledPhysX/Qt6BundledPhysXVersionlessAliasTargets.cmake
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DPhysics/Qt6Quick3DPhysicsVersionlessAliasTargets.cmake
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/Qt6Quick3DPhysicsHelpers/Qt6Quick3DPhysicsHelpersVersionlessAliasTargets.cmake

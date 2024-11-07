@@ -128,16 +128,7 @@ libQt6Quick3DPhysics.so.6 libqt6quick3dphysics6 #MINVER#
  (optional=templinst)_ZN15MeshRayCollider7collideILi1ELi1EEEvRKN5physx6PxVec3ES4_fbPKNS1_2Gu17RTreeTriangleMeshERNS5_15MeshHitCallbackINS1_12PxRaycastHitEEEPS3_@Qt_6 6.6.1
  _ZN16QConvexMeshShape11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6_PRIVATE_API 6.6.1
  _ZN16QConvexMeshShape11qt_metacastEPKc@Qt_6_PRIVATE_API 6.6.1
- _ZN16QConvexMeshShape13sourceChangedEv@Qt_6_PRIVATE_API 6.6.1
- _ZN16QConvexMeshShape16getPhysXGeometryEv@Qt_6_PRIVATE_API 6.6.1
  _ZN16QConvexMeshShape16staticMetaObjectE@Qt_6_PRIVATE_API 6.6.1
- _ZN16QConvexMeshShape19updatePhysXGeometryEv@Qt_6_PRIVATE_API 6.6.1
- _ZN16QConvexMeshShape9setSourceERK4QUrl@Qt_6_PRIVATE_API 6.6.1
- _ZN16QConvexMeshShapeC1Ev@Qt_6_PRIVATE_API 6.6.1
- _ZN16QConvexMeshShapeC2Ev@Qt_6_PRIVATE_API 6.6.1
- _ZN16QConvexMeshShapeD0Ev@Qt_6_PRIVATE_API 6.6.1
- _ZN16QConvexMeshShapeD1Ev@Qt_6_PRIVATE_API 6.6.1
- _ZN16QConvexMeshShapeD2Ev@Qt_6_PRIVATE_API 6.6.1
  _ZN16QPhysicsMaterial11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6_PRIVATE_API 6.6.1
  _ZN16QPhysicsMaterial11qt_metacastEPKc@Qt_6_PRIVATE_API 6.6.1
  _ZN16QPhysicsMaterial14setRestitutionEf@Qt_6_PRIVATE_API 6.6.1
@@ -222,16 +213,7 @@ libQt6Quick3DPhysics.so.6 libqt6quick3dphysics6 #MINVER#
  _ZN17QHeightFieldShapeD2Ev@Qt_6_PRIVATE_API 6.6.1
  _ZN18QTriangleMeshShape11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6_PRIVATE_API 6.6.1
  _ZN18QTriangleMeshShape11qt_metacastEPKc@Qt_6_PRIVATE_API 6.6.1
- _ZN18QTriangleMeshShape13sourceChangedEv@Qt_6_PRIVATE_API 6.6.1
- _ZN18QTriangleMeshShape16getPhysXGeometryEv@Qt_6_PRIVATE_API 6.6.1
  _ZN18QTriangleMeshShape16staticMetaObjectE@Qt_6_PRIVATE_API 6.6.1
- _ZN18QTriangleMeshShape19updatePhysXGeometryEv@Qt_6_PRIVATE_API 6.6.1
- _ZN18QTriangleMeshShape9setSourceERK4QUrl@Qt_6_PRIVATE_API 6.6.1
- _ZN18QTriangleMeshShapeC1Ev@Qt_6_PRIVATE_API 6.6.1
- _ZN18QTriangleMeshShapeC2Ev@Qt_6_PRIVATE_API 6.6.1
- _ZN18QTriangleMeshShapeD0Ev@Qt_6_PRIVATE_API 6.6.1
- _ZN18QTriangleMeshShapeD1Ev@Qt_6_PRIVATE_API 6.6.1
- _ZN18QTriangleMeshShapeD2Ev@Qt_6_PRIVATE_API 6.6.1
  (subst)_ZN20QAbstractPhysicsNode10qmlShapeAtEP16QQmlListPropertyI23QAbstractCollisionShapeE{qptrdiff}@Qt_6_PRIVATE_API 6.6.1
  _ZN20QAbstractPhysicsNode11bodyContactEPS_RK5QListI9QVector3DES5_S5_@Qt_6_PRIVATE_API 6.6.1
  _ZN20QAbstractPhysicsNode11qt_metacallEN11QMetaObject4CallEiPPv@Qt_6_PRIVATE_API 6.6.1
@@ -755,7 +737,6 @@ libQt6Quick3DPhysics.so.6 libqt6quick3dphysics6 #MINVER#
  _ZNK13QPhysicsWorld8viewportEv@Qt_6_PRIVATE_API 6.6.1
  _ZNK13QPhysicsWorld9enableCCDEv@Qt_6_PRIVATE_API 6.6.1
  _ZNK16QConvexMeshShape10metaObjectEv@Qt_6_PRIVATE_API 6.6.1
- _ZNK16QConvexMeshShape6sourceEv@Qt_6_PRIVATE_API 6.6.1
  _ZNK16QPhysicsMaterial10metaObjectEv@Qt_6_PRIVATE_API 6.6.1
  _ZNK16QPhysicsMaterial11restitutionEv@Qt_6_PRIVATE_API 6.6.1
  _ZNK16QPhysicsMaterial14staticFrictionEv@Qt_6_PRIVATE_API 6.6.1
@@ -782,7 +763,6 @@ libQt6Quick3DPhysics.so.6 libqt6quick3dphysics6 #MINVER#
  _ZNK17QHeightFieldShape6sourceEv@Qt_6_PRIVATE_API 6.6.1
  _ZNK17QHeightFieldShape7extentsEv@Qt_6_PRIVATE_API 6.6.1
  _ZNK18QTriangleMeshShape10metaObjectEv@Qt_6_PRIVATE_API 6.6.1
- _ZNK18QTriangleMeshShape6sourceEv@Qt_6_PRIVATE_API 6.6.1
  _ZNK20QAbstractPhysicsNode10metaObjectEv@Qt_6_PRIVATE_API 6.6.1
  _ZNK20QAbstractPhysicsNode18sendContactReportsEv@Qt_6_PRIVATE_API 6.6.1
  _ZNK20QAbstractPhysicsNode18sendTriggerReportsEv@Qt_6_PRIVATE_API 6.6.1
@@ -908,7 +888,6 @@ libQt6Quick3DPhysics.so.6 libqt6quick3dphysics6 #MINVER#
  (c++)"non-virtual thunk to QAbstractPhysicsNode::~QAbstractPhysicsNode()@Qt_6_PRIVATE_API" 6.6.1
  (c++)"non-virtual thunk to QBoxShape::~QBoxShape()@Qt_6_PRIVATE_API" 6.6.1
  (c++)"non-virtual thunk to QCapsuleShape::~QCapsuleShape()@Qt_6_PRIVATE_API" 6.6.1
- (c++)"non-virtual thunk to QConvexMeshShape::~QConvexMeshShape()@Qt_6_PRIVATE_API" 6.6.1
  (c++)"non-virtual thunk to QDynamicRigidBody::~QDynamicRigidBody()@Qt_6_PRIVATE_API" 6.6.1
  (c++)"non-virtual thunk to QHeightFieldShape::~QHeightFieldShape()@Qt_6_PRIVATE_API" 6.6.1
  (c++)"non-virtual thunk to QPhysicsWorld::classBegin()@Qt_6_PRIVATE_API" 6.6.1
@@ -916,7 +895,6 @@ libQt6Quick3DPhysics.so.6 libqt6quick3dphysics6 #MINVER#
  (c++)"non-virtual thunk to QPhysicsWorld::~QPhysicsWorld()@Qt_6_PRIVATE_API" 6.6.1
  (c++)"non-virtual thunk to QPlaneShape::~QPlaneShape()@Qt_6_PRIVATE_API" 6.6.1
  (c++)"non-virtual thunk to QSphereShape::~QSphereShape()@Qt_6_PRIVATE_API" 6.6.1
- (c++)"non-virtual thunk to QTriangleMeshShape::~QTriangleMeshShape()@Qt_6_PRIVATE_API" 6.6.1
  (c++)"non-virtual thunk to physx::Gu::ConvexMesh::onRefCountZero()@Qt_6" 6.6.1
  (c++)"non-virtual thunk to physx::Gu::ConvexMesh::~ConvexMesh()@Qt_6" 6.6.1
  (c++)"non-virtual thunk to physx::Gu::HeightField::onRefCountZero()@Qt_6" 6.6.1
