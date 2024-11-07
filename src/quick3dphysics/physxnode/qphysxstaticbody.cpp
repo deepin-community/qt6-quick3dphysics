@@ -14,13 +14,6 @@
 
 QT_BEGIN_NAMESPACE
 
-static inline bool fuzzyEquals(const physx::PxTransform &a, const physx::PxTransform &b)
-{
-    return qFuzzyCompare(a.p.x, b.p.x) && qFuzzyCompare(a.p.y, b.p.y) && qFuzzyCompare(a.p.z, b.p.z)
-            && qFuzzyCompare(a.q.x, b.q.x) && qFuzzyCompare(a.q.y, b.q.y)
-            && qFuzzyCompare(a.q.z, b.q.z) && qFuzzyCompare(a.q.w, b.q.w);
-}
-
 QPhysXStaticBody::QPhysXStaticBody(QStaticRigidBody *frontEnd) : QPhysXRigidBody(frontEnd) { }
 
 DebugDrawBodyType QPhysXStaticBody::getDebugDrawBodyType()
@@ -36,8 +29,15 @@ void QPhysXStaticBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &
     const physx::PxTransform poseOld = actor->getGlobalPose();
 
     // For performance we only update static objects if they have been moved
-    if (!fuzzyEquals(poseNew, poseOld))
+    if (!QPhysicsUtils::fuzzyEquals(poseNew, poseOld))
         actor->setGlobalPose(poseNew);
+
+    const bool disabledPrevious = actor->getActorFlags() & physx::PxActorFlag::eDISABLE_SIMULATION;
+    const bool disabled = !staticBody->simulationEnabled();
+    if (disabled != disabledPrevious) {
+        actor->setActorFlag(physx::PxActorFlag::eDISABLE_SIMULATION, disabled);
+    }
+
     QPhysXActorBody::sync(deltaTime, transformCache);
 }
 

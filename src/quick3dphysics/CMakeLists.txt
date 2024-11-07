@@ -34,6 +34,7 @@ qt_internal_add_qml_module(Quick3DPhysics
         qdebugdrawhelper.cpp qdebugdrawhelper_p.h
         qdynamicrigidbody.cpp qdynamicrigidbody_p.h
         qheightfieldshape.cpp qheightfieldshape_p.h
+        qmeshshape.cpp qmeshshape_p.h
         qphysicscommands.cpp qphysicscommands_p.h
         qphysicsmaterial.cpp qphysicsmaterial_p.h
         qphysicsmeshutils_p_p.h
@@ -53,6 +54,8 @@ qt_internal_add_qml_module(Quick3DPhysics
     SYSTEM_INCLUDE_DIRECTORIES
         ../3rdparty/PhysX/include
         ../3rdparty/PhysX/pxshared/include
+    DEPENDENCIES
+        QtQuick3D
     LIBRARIES
         Qt::CorePrivate
         Qt::GuiPrivate
@@ -72,6 +75,7 @@ qt_internal_add_qml_module(Quick3DPhysics
         Qt::QmlPrivate
         Qt::Quick3D
         Qt::QuickPrivate
+    NO_GENERATE_CPP_EXPORTS
 )
 
 qt_internal_extend_target(qquick3dphysicsplugin
@@ -81,7 +85,7 @@ qt_internal_extend_target(qquick3dphysicsplugin
         Qt::Quick3DPhysicsPrivate
 )
 
-if (UNIX)
+if (UNIX OR MINGW)
     # Needed for PxPreprocessor.h error
     if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
         qt_internal_extend_target(Quick3DPhysics DEFINES _DEBUG)
