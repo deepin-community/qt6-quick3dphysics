@@ -1,5 +1,6 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qphysxworld_p.h"
 
@@ -53,14 +54,16 @@ public:
             if (world->isNodeRemoved(triggerNode) || world->isNodeRemoved(otherNode))
                 continue;
 
-            if (pairs->status == physx::PxPairFlag::eNOTIFY_TOUCH_FOUND) {
+            const auto status = pairs[i].status;
+
+            if (status == physx::PxPairFlag::eNOTIFY_TOUCH_FOUND) {
                 if (otherNode->sendTriggerReports()) {
                     triggerNode->registerCollision(otherNode);
                 }
                 if (otherNode->receiveTriggerReports()) {
                     emit otherNode->enteredTriggerBody(triggerNode);
                 }
-            } else if (pairs->status == physx::PxPairFlag::eNOTIFY_TOUCH_LOST) {
+            } else if (status == physx::PxPairFlag::eNOTIFY_TOUCH_LOST) {
                 if (otherNode->sendTriggerReports()) {
                     triggerNode->deregisterCollision(otherNode);
                 }
@@ -126,7 +129,7 @@ public:
 
                 QList<QVector3D> normalsInverted;
                 normalsInverted.reserve(normals.size());
-                for (const QVector3D &v : normals) {
+                for (const QVector3D &v : std::as_const(normals)) {
                     normalsInverted.push_back(QVector3D(-v.x(), -v.y(), -v.z()));
                 }
 
@@ -151,12 +154,8 @@ static constexpr bool isBitSet(quint32 value, quint32 position)
     return value & (1 << (position));
 }
 
-static physx::PxFilterFlags
-contactReportFilterShader(physx::PxFilterObjectAttributes /*attributes0*/,
-                          physx::PxFilterData filterData0,
-                          physx::PxFilterObjectAttributes /*attributes1*/,
-                          physx::PxFilterData filterData1, physx::PxPairFlags &pairFlags,
-                          const void * /*constantBlock*/, physx::PxU32 /*constantBlockSize*/)
+// If any 'id' bit is set in the other mask it means collisions should be ignored, i.e.
+static bool isFilteredOut(physx::PxFilterData filterData0, physx::PxFilterData filterData1)
 {
     // First word is id, second is collision mask
     const quint32 id0 = filterData0.word0;
@@ -164,10 +163,30 @@ contactReportFilterShader(physx::PxFilterObjectAttributes /*attributes0*/,
     const quint32 mask0 = filterData0.word1;
     const quint32 mask1 = filterData1.word1;
 
-    // If any 'id' bit is set in the other mask it means collisions should be ignored
-    if (id0 < 32 && id1 < 32 && (isBitSet(mask0, id1) || isBitSet(mask1, id0))) {
+    return id0 < 32 && id1 < 32 && (isBitSet(mask0, id1) || isBitSet(mask1, id0));
+}
+
+static physx::PxFilterFlags
+contactReportFilterShader(physx::PxFilterObjectAttributes attributes0,
+                          physx::PxFilterData filterData0,
+                          physx::PxFilterObjectAttributes attributes1,
+                          physx::PxFilterData filterData1, physx::PxPairFlags &pairFlags,
+                          const void * /*constantBlock*/, physx::PxU32 /*constantBlockSize*/)
+{
+    if (isFilteredOut(filterData0, filterData1)) {
         // We return a 'suppress' since that will still re-evaluate when filter data is changed.
         return physx::PxFilterFlag::eSUPPRESS;
+    }
+
+    // A trigger shape does not collide, it only reports what overlaps it, so
+    // there is nothing to solve and nothing for a continuous sweep to do. The
+    // scene has CCD enabled unconditionally (see below), and PhysX warns for
+    // every trigger pair that asks for a CCD contact, so ask only for what a
+    // trigger actually needs.
+    if (physx::PxFilterObjectIsTrigger(attributes0)
+        || physx::PxFilterObjectIsTrigger(attributes1)) {
+        pairFlags = physx::PxPairFlag::eTRIGGER_DEFAULT;
+        return physx::PxFilterFlag::eDEFAULT;
     }
 
     // Makes objects collide
@@ -187,11 +206,14 @@ contactReportFilterShader(physx::PxFilterObjectAttributes /*attributes0*/,
 
 static physx::PxFilterFlags
 contactReportFilterShaderCCD(physx::PxFilterObjectAttributes /*attributes0*/,
-                             physx::PxFilterData /*filterData0*/,
+                             physx::PxFilterData filterData0,
                              physx::PxFilterObjectAttributes /*attributes1*/,
-                             physx::PxFilterData /*filterData1*/, physx::PxPairFlags &pairFlags,
+                             physx::PxFilterData filterData1, physx::PxPairFlags &pairFlags,
                              const void * /*constantBlock*/, physx::PxU32 /*constantBlockSize*/)
 {
+    if (isFilteredOut(filterData0, filterData1))
+        return physx::PxFilterFlag::eSUPPRESS;
+
     // Makes objects collide
     const auto defaultCollisonFlags = physx::PxPairFlag::eSOLVE_CONTACT
             | physx::PxPairFlag::eDETECT_DISCRETE_CONTACT | physx::PxPairFlag::eDETECT_CCD_CONTACT;
@@ -251,6 +273,10 @@ void QPhysXWorld::deleteWorld()
         PHYSX_RELEASE(s_physx.cooking);
         PHYSX_RELEASE(s_physx.transport);
         PHYSX_RELEASE(s_physx.pvd);
+        // Every node releases its material when it is cleaned up, which happens before the
+        // last world is deleted, so nothing should be left to release here
+        Q_ASSERT(s_physx.materials.isEmpty());
+        s_physx.materials.clear();
         PHYSX_RELEASE(s_physx.physics);
         PHYSX_RELEASE(s_physx.foundation);
 

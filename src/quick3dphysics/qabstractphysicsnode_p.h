@@ -1,5 +1,6 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #ifndef ABSTRACTPHYSICSNODE_H
 #define ABSTRACTPHYSICSNODE_H
@@ -29,6 +30,7 @@ class PxShape;
 QT_BEGIN_NAMESPACE
 
 class QAbstractPhysXNode;
+class QPhysicsJoint;
 
 class Q_QUICK3DPHYSICS_EXPORT QAbstractPhysicsNode : public QQuick3DNode
 {
@@ -119,6 +121,7 @@ private:
     int m_filterIgnoreGroups = 0;
     bool m_filtersDirty = false;
 
+    friend class QPhysicsJoint;
     friend class QAbstractPhysXNode;
     friend class QPhysicsWorld; // for register/deregister TODO: cleaner mechanism
     friend class SimulationEventCallback;

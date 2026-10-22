@@ -1,5 +1,6 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qcapsuleshape_p.h"
 
@@ -24,18 +25,18 @@ QT_BEGIN_NAMESPACE
     the y component will be used to scale the diameter. The cylinder will always be perfectly circular even if the
     scaling transformation is non-uniform.
 
-    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
+    \sa {Qt Quick 3D Physics Shapes, Bodies and Joints}
 */
 
 /*!
-    \qmlproperty float CapsuleShape::diameter
+    \qmlproperty real CapsuleShape::diameter
     This property defines the diameter of the capsule
 
     Default value: \c{100}
 */
 
 /*!
-    \qmlproperty float CapsuleShape::height
+    \qmlproperty real CapsuleShape::height
     This property defines the height of the capsule
 
     Default value: \c{100}
@@ -64,6 +65,12 @@ float QCapsuleShape::diameter() const
 
 void QCapsuleShape::setDiameter(float newDiameter)
 {
+    if (!qIsFinite(newDiameter) || newDiameter <= 0.f) {
+        qWarning() << "CapsuleShape: diameter must be finite and greater than zero, ignoring"
+                   << newDiameter;
+        return;
+    }
+
     if (qFuzzyCompare(m_diameter, newDiameter))
         return;
     m_diameter = newDiameter;
@@ -80,6 +87,12 @@ float QCapsuleShape::height() const
 
 void QCapsuleShape::setHeight(float newHeight)
 {
+    if (!qIsFinite(newHeight) || newHeight <= 0.f) {
+        qWarning() << "CapsuleShape: height must be finite and greater than zero, ignoring"
+                   << newHeight;
+        return;
+    }
+
     if (qFuzzyCompare(m_height, newHeight))
         return;
     m_height = newHeight;
@@ -92,11 +105,18 @@ void QCapsuleShape::setHeight(float newHeight)
 void QCapsuleShape::updatePhysXGeometry()
 {
     delete m_physXGeometry;
-    QVector3D s = sceneScale();
-    qreal rs = s.y();
-    qreal hs = s.x();
-    m_physXGeometry = new physx::PxCapsuleGeometry(rs * m_diameter * 0.5f, hs * m_height * 0.5f);
+    m_physXGeometry = nullptr;
     m_scaleDirty = false;
+
+    QVector3D s = sceneScale();
+    const float radius = s.y() * m_diameter * 0.5f;
+    const float halfHeight = s.x() * m_height * 0.5f;
+    if (!qIsFinite(radius) || radius <= 0.f || !qIsFinite(halfHeight) || halfHeight <= 0.f) {
+        qWarning() << "CapsuleShape: scaled radius/height must be finite and greater than "
+                      "zero, ignoring.";
+        return;
+    }
+    m_physXGeometry = new physx::PxCapsuleGeometry(radius, halfHeight);
 }
 
 QT_END_NAMESPACE

@@ -1,5 +1,6 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #ifndef ABSTRACTPHYSXNODE_H
 #define ABSTRACTPHYSXNODE_H
@@ -15,10 +16,13 @@
 // We mean it.
 //
 
+#include "qstaticphysxobjects_p.h"
+
 #include "foundation/PxTransform.h"
 #include "qtconfigmacros.h"
 
 #include <QVector>
+#include <qobject.h>
 
 namespace physx {
 class PxMaterial;
@@ -48,13 +52,11 @@ enum class DebugDrawBodyType {
    NOTE
    The inheritance hierarchy is not ideal, since both controller and rigid body have materials,
    but trigger doesn't. AND both trigger and rigid body have actors, but controller doesn't.
-
-   TODO: defaultMaterial isn't used for rigid bodies, since they always create their own
-   QPhysicsMaterial with default values. We should only have a qt material when set explicitly.
 */
 
-class QAbstractPhysXNode
+class QAbstractPhysXNode : public QObject
 {
+    Q_OBJECT
 public:
     QAbstractPhysXNode(QAbstractPhysicsNode *node);
     virtual ~QAbstractPhysXNode();
@@ -63,8 +65,12 @@ public:
 
     virtual void init(QPhysicsWorld *world, QPhysXWorld *physX) = 0;
     virtual void updateDefaultDensity(float density);
-    virtual void createMaterial(QPhysXWorld *physX);
-    void createMaterialFromQtMaterial(QPhysXWorld *physX, QPhysicsMaterial *qtMaterial);
+    // The material of the frontend node, if it has one
+    virtual QPhysicsMaterial *qtMaterial() const;
+    // Moves the node to the material matching the properties of qtMaterial(), creating it if
+    // needed. Returns true if the node ended up with a different material than before.
+    bool updateMaterial();
+    void releaseMaterial();
     virtual void markDirtyShapes();
     virtual void rebuildDirtyShapes(QPhysicsWorld *, QPhysXWorld *);
     virtual void updateFilters();
@@ -85,9 +91,10 @@ public:
 
     QVector<physx::PxShape *> shapes;
     physx::PxMaterial *material = nullptr;
+    // The properties 'material' was created for
+    PhysicsMaterialProperties materialProperties = PhysicsMaterialProperties::none();
     QAbstractPhysicsNode *frontendNode = nullptr;
     bool isRemoved = false;
-    static physx::PxMaterial *sDefaultMaterial;
 };
 
 QT_END_NAMESPACE

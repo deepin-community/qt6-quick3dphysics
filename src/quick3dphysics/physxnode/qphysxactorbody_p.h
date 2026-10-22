@@ -1,5 +1,6 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #ifndef PHYSXACTORBODY_H
 #define PHYSXACTORBODY_H
@@ -26,6 +27,7 @@ QT_BEGIN_NAMESPACE
 
 class QPhysXActorBody : public QAbstractPhysXNode
 {
+    Q_OBJECT
 public:
     QPhysXActorBody(QAbstractPhysicsNode *frontEnd);
     void cleanup(QPhysXWorld *physX) override;

@@ -3,8 +3,6 @@
 import QtQuick
 import QtQuick3D
 import QtQuick3D.Physics
-import QtQuick.Controls
-import QtQuick.Layouts
 
 Window {
     width: 1280
@@ -61,8 +59,8 @@ Window {
             Model {
                 source: "#Rectangle"
                 scale: Qt.vector3d(500, 500, 1)
-                materials: DefaultMaterial {
-                    diffuseColor: "green"
+                materials: PrincipledMaterial {
+                    baseColor: "green"
                 }
                 castsShadows: false
                 receivesShadows: true

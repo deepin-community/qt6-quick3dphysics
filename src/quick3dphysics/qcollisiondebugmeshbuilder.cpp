@@ -1,5 +1,6 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qcollisiondebugmeshbuilder_p.h"
 
@@ -37,23 +38,23 @@ QByteArray QCollisionDebugMeshBuilder::generateVertexArray()
         data[0] = start.x();
         data[1] = start.y();
         data[2] = start.z();
-        data[4] = 1.0f;
+        data[3] = 1.0f;
 
-        data[5] = normal.x();
-        data[6] = normal.y();
-        data[7] = normal.z();
-        data[8] = 0.0f;
+        data[4] = normal.x();
+        data[5] = normal.y();
+        data[6] = normal.z();
+        data[7] = 0.0f;
 
         data += 8;
         data[0] = end.x();
         data[1] = end.y();
         data[2] = end.z();
-        data[4] = 1.0f;
+        data[3] = 1.0f;
 
-        data[5] = normal.x();
-        data[6] = normal.y();
-        data[7] = normal.z();
-        data[8] = 0.0f;
+        data[4] = normal.x();
+        data[5] = normal.y();
+        data[6] = normal.z();
+        data[7] = 0.0f;
 
         data += 8;
     }

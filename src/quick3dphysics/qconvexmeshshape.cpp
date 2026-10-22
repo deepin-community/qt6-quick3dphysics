@@ -1,5 +1,6 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qconvexmeshshape_p.h"
 
@@ -16,7 +17,7 @@ QT_BEGIN_NAMESPACE
     \l [QtQuick3D]{Model::source}{QtQuick3D.Model}. If the mesh is not convex, the convex hull of the
     mesh will be used.
 
-    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}, TriangleMeshShape
+    \sa {Qt Quick 3D Physics Shapes, Bodies and Joints}, TriangleMeshShape
 */
 
 /*!

@@ -3,8 +3,9 @@
 import QtQuick
 import QtTest
 import QtQuick3D
+import QtQuick3D.Helpers
 import QtQuick3D.Physics
-import QtQuick3D.Physics.Helpers
+import QtQuick3D.Physics.TestUtils
 
 // Test loading a heightfield from both 'source' and 'image' property
 
@@ -16,8 +17,8 @@ Item {
     PhysicsWorld {
         scene: viewport.scene
         forceDebugDraw: true
-        maximumTimestep: 16
-        minimumTimestep: 16
+        maximumTimestep: 15
+        minimumTimestep: 15
     }
 
     View3D {
@@ -39,7 +40,7 @@ Item {
         DirectionalLight {
             eulerRotation.x: -45
             eulerRotation.y: 45
-            castsShadow: true
+            castsShadow: false
             brightness: 1
             shadowFactor: 100
         }
@@ -149,15 +150,13 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "Box A"
-        when: dynamicBoxA.hit
-        function triggered() {  }
+        goalReached: dynamicBoxA.hit
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "Box B"
-        when: dynamicBoxB.hit
-        function triggered() {  }
+        goalReached: dynamicBoxB.hit
     }
 }

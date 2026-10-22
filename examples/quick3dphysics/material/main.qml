@@ -3,7 +3,6 @@
 import QtQuick
 import QtQuick3D
 import QtQuick3D.Physics
-import QtQuick3D.Helpers
 import QtQuick.Controls
 import QtQuick.Layouts
 
@@ -60,8 +59,8 @@ Window {
             collisionShapes: PlaneShape {}
             Model {
                 source: "#Rectangle"
-                materials: DefaultMaterial {
-                    diffuseColor: "green"
+                materials: PrincipledMaterial {
+                    baseColor: "green"
                 }
                 castsShadows: false
                 receivesShadows: true

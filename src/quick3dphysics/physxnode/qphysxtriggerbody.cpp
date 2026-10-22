@@ -1,5 +1,6 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qphysxtriggerbody_p.h"
 
@@ -23,6 +24,10 @@ void QPhysXTriggerBody::sync(float /*deltaTime*/,
     auto *triggerBody = static_cast<QTriggerBody *>(frontendNode);
     const physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(triggerBody->scenePosition(),
                                                                    triggerBody->sceneRotation());
+    if (!trf.isSane()) {
+        qWarning() << "TriggerBody: position/rotation is not finite, keeping previous pose.";
+        return;
+    }
     actor->setGlobalPose(trf);
 }
 

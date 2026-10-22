@@ -1,5 +1,6 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #ifndef CAPSULEGEOMETRY_H
 #define CAPSULEGEOMETRY_H
@@ -19,7 +20,7 @@
 
 QT_BEGIN_NAMESPACE
 
-class CapsuleGeometry : public QQuick3DGeometry
+class CapsuleGeometryPhysics : public QQuick3DGeometry
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(CapsuleGeometry)
@@ -34,7 +35,7 @@ class CapsuleGeometry : public QQuick3DGeometry
     Q_PROPERTY(float diameter READ diameter WRITE setDiameter NOTIFY diameterChanged)
 
 public:
-    CapsuleGeometry();
+    CapsuleGeometryPhysics();
 
     bool enableNormals() const { return m_enableNormals; }
     void setEnableNormals(bool enable);

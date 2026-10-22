@@ -1,11 +1,11 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qcacheutils_p.h"
 #include "qmeshshape_p.h"
+#include "qphysicsutils_p.h"
 
-#include <QFile>
-#include <QFileInfo>
 #include <QtQuick3D/QQuick3DGeometry>
 #include <extensions/PxExtensionsAPI.h>
 
@@ -14,10 +14,10 @@
 #include "extensions/PxDefaultStreams.h"
 
 #include <QtQml/qqml.h>
-#include <QtQml/QQmlFile>
 #include <QtQml/qqmlcontext.h>
 
 #include <QtQuick3DUtils/private/qssgmesh_p.h>
+#include <QtQuick3DRuntimeRender/private/qssgrenderbuffermanager_p.h>
 #include <QtQuick3D/QQuick3DGeometry>
 
 #include "qmeshshape_p.h"
@@ -26,19 +26,32 @@
 
 QT_BEGIN_NAMESPACE
 
-static QQuick3DGeometry::Attribute
-attributeBySemantic(const QQuick3DGeometry *geometry,
-                    QQuick3DGeometry::Attribute::Semantic semantic)
+static bool attributeBySemantic(const QQuick3DGeometry *geometry,
+                                QQuick3DGeometry::Attribute::Semantic semantic,
+                                QQuick3DGeometry::Attribute *result)
 {
     for (int i = 0; i < geometry->attributeCount(); i++) {
         const auto attr = geometry->attribute(i);
-        if (attr.semantic == semantic)
-            return attr;
+        if (attr.semantic == semantic) {
+            *result = attr;
+            return true;
+        }
     }
 
-    Q_UNREACHABLE();
-    return QQuick3DGeometry::Attribute();
+    return false;
 };
+
+static bool isValidPositionLayout(int offset, int stride, qsizetype bufferSize)
+{
+    const qsizetype positionSize = qsizetype(3 * sizeof(float));
+    if (stride <= 0 || offset < 0 || offset + positionSize > stride || bufferSize < stride) {
+        qWarning() << "QQuick3DPhysicsMesh: Invalid geometry, position attribute (offset"
+                   << offset << ") does not fit within stride" << stride << "and buffer size"
+                   << bufferSize;
+        return false;
+    }
+    return true;
+}
 
 physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
 {
@@ -90,6 +103,8 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMeshQmlSource()
         return nullptr;
 
     const int vStride = m_ssgMesh.vertexBuffer().stride;
+    if (!isValidPositionLayout(m_posOffset, vStride, m_ssgMesh.vertexBuffer().data.size()))
+        return nullptr;
     const int vCount = m_ssgMesh.vertexBuffer().data.size() / vStride;
 
     qCDebug(lcQuick3dPhysics) << "prepare cooking" << vCount << "verts";
@@ -134,11 +149,17 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMeshGeometrySource()
         return nullptr;
     }
 
-    const auto vertexAttribute =
-            attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::PositionSemantic);
+    QQuick3DGeometry::Attribute vertexAttribute;
+    if (!attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::PositionSemantic,
+                             &vertexAttribute)) {
+        qWarning() << "QQuick3DPhysicsMesh: Invalid geometry, no position attribute found.";
+        return nullptr;
+    }
     Q_ASSERT(vertexAttribute.componentType == QQuick3DGeometry::Attribute::F32Type);
 
     const auto stride = m_meshGeometry->stride();
+    if (!isValidPositionLayout(vertexAttribute.offset, stride, vertexBuffer.size()))
+        return nullptr;
     const auto numVertices = vertexBuffer.size() / stride;
 
     physx::PxConvexMeshDesc convexDesc;
@@ -186,6 +207,8 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshQmlSource()
 
     const int posOffset = m_posOffset;
     const auto stride =  m_ssgMesh.vertexBuffer().stride;
+    if (!isValidPositionLayout(posOffset, stride, vertexBuffer.size()))
+        return nullptr;
     const auto numVertices = vertexBuffer.size() / stride;
 
     physx::PxTriangleMeshDesc triangleDesc;
@@ -245,12 +268,18 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshGeometrySource()
         return nullptr;
     }
 
-    const auto vertexAttribute =
-            attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::PositionSemantic);
+    QQuick3DGeometry::Attribute vertexAttribute;
+    if (!attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::PositionSemantic,
+                             &vertexAttribute)) {
+        qWarning() << "QQuick3DPhysicsMesh: Invalid geometry, no position attribute found.";
+        return nullptr;
+    }
     Q_ASSERT(vertexAttribute.componentType == QQuick3DGeometry::Attribute::F32Type);
 
     const int posOffset = vertexAttribute.offset;
     const auto stride = m_meshGeometry->stride();
+    if (!isValidPositionLayout(posOffset, stride, vertexBuffer.size()))
+        return nullptr;
     const auto numVertices = vertexBuffer.size() / stride;
 
     physx::PxTriangleMeshDesc triangleDesc;
@@ -260,8 +289,13 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshGeometrySource()
 
     auto indexBuffer = m_meshGeometry->indexData();
     if (indexBuffer.size()) {
-        const auto indexAttribute =
-                attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::IndexSemantic);
+        QQuick3DGeometry::Attribute indexAttribute;
+        if (!attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::IndexSemantic,
+                                 &indexAttribute)) {
+            qWarning() << "QQuick3DPhysicsMesh: Invalid geometry, index data present but no "
+                          "index attribute found.";
+            return nullptr;
+        }
         const bool u16IndexType =
                 indexAttribute.componentType == QQuick3DGeometry::Attribute::U16Type;
 
@@ -300,16 +334,16 @@ void QQuick3DPhysicsMesh::loadSsgMesh()
     if (m_ssgMesh.isValid())
         return;
 
+    // A bit ugly to use QSSGRenderPath here but it is just a wrapper for
+    // a QString and its hash.
+    // Security note: m_meshPath is a user provided file but QSSGBufferManager::loadMeshData is
+    // assumed to handle invalid meshes
+    m_ssgMesh = QSSGBufferManager::loadMeshData(QSSGRenderPath(m_meshPath));
+
     static const char *compTypes[] = { "Null",  "UnsignedInt8",  "Int8",    "UnsignedInt16",
                                        "Int16", "UnsignedInt32", "Int32",   "UnsignedInt64",
                                        "Int64", "Float16",       "Float32", "Float64" };
 
-    QFileInfo fileInfo = QFileInfo(m_meshPath);
-    if (fileInfo.exists()) {
-        QFile file(fileInfo.absoluteFilePath());
-        if (file.open(QFile::ReadOnly))
-            m_ssgMesh = QSSGMesh::Mesh::loadMesh(&file);
-    }
     qCDebug(lcQuick3dPhysics) << "Loaded SSG mesh from" << m_meshPath << m_ssgMesh.isValid()
                               << "draw" << int(m_ssgMesh.drawMode()) << "wind"
                               << int(m_ssgMesh.winding()) << "subs" << m_ssgMesh.subsets().count()
@@ -363,12 +397,9 @@ void QQuick3DPhysicsMesh::loadSsgMesh()
         qCWarning(lcQuick3dPhysics) << "Could not read mesh from" << m_meshPath;
 }
 
-QQuick3DPhysicsMesh *QQuick3DPhysicsMeshManager::getMesh(const QUrl &source,
-                                                         const QObject *contextObject)
+QQuick3DPhysicsMesh *QQuick3DPhysicsMeshManager::getMesh(const QUrl &source, QObject *contextObject)
 {
-    const QQmlContext *context = qmlContext(contextObject);
-    const auto resolvedUrl = context ? context->resolvedUrl(source) : source;
-    const auto qmlSource = QQmlFile::urlToLocalFileOrQrc(resolvedUrl);
+    const QString qmlSource = QQuick3DModel::translateMeshSource(source, contextObject);
     auto *mesh = sourceMeshHash.value(qmlSource);
     if (!mesh) {
         mesh = new QQuick3DPhysicsMesh(qmlSource);
@@ -446,6 +477,13 @@ void QMeshShape::updatePhysXGeometry()
     auto meshScale = sceneScale();
     physx::PxMeshScale scale(physx::PxVec3(meshScale.x(), meshScale.y(), meshScale.z()),
                              physx::PxQuat(physx::PxIdentity));
+
+    if (!QPhysicsUtils::isFinite(meshScale)
+        || !(convexMesh ? scale.isValidForConvexMesh() : scale.isValidForTriangleMesh())) {
+        qWarning() << "MeshShape: scaled mesh scale" << meshScale << "is invalid, ignoring.";
+        m_dirtyPhysx = false;
+        return;
+    }
 
     if (convexMesh)
         m_convexGeometry = new physx::PxConvexMeshGeometry(convexMesh, scale);
