@@ -1,5 +1,6 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qphysicsworld_p.h"
 
@@ -8,6 +9,7 @@
 #include "qabstractphysicsnode_p.h"
 #include "qdebugdrawhelper_p.h"
 #include "qphysicsutils_p.h"
+#include "joints/qjoint_p.h"
 #include "qstaticphysxobjects_p.h"
 #include "qboxshape_p.h"
 #include "qsphereshape_p.h"
@@ -20,12 +22,16 @@
 
 #include "PxPhysicsAPI.h"
 #include "cooking/PxCooking.h"
+#include <foundation/PxSimpleTypes.h>
 
+#include <QtQuick/private/qquickframeanimation_p.h>
 #include <QtQuick3D/private/qquick3dobject_p.h>
 #include <QtQuick3D/private/qquick3dnode_p.h>
 #include <QtQuick3D/private/qquick3dmodel_p.h>
-#include <QtQuick3D/private/qquick3ddefaultmaterial_p.h>
+#include <QtQuick3D/private/qquick3dprincipledmaterial_p.h>
 #include <QtQuick3DUtils/private/qssgutils_p.h>
+
+#include <QtGui/qquaternion.h>
 
 #include <QtEnvironmentVariables>
 
@@ -73,7 +79,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float PhysicsWorld::typicalLength
+    \qmlproperty real PhysicsWorld::typicalLength
     This property defines the approximate size of objects in the simulation. This is used to
     estimate certain length-related tolerances. Objects much smaller or much larger than this
     size may not behave properly. The default value is \c 100.
@@ -82,7 +88,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float PhysicsWorld::typicalSpeed
+    \qmlproperty real PhysicsWorld::typicalSpeed
     This property defines the typical magnitude of velocities of objects in simulation. This is used
     to estimate whether a contact should be treated as bouncing or resting based on its impact
     velocity, and a kinetic energy threshold below which the simulation may put objects to sleep.
@@ -94,7 +100,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float PhysicsWorld::defaultDensity
+    \qmlproperty real PhysicsWorld::defaultDensity
     This property defines the default density of dynamic objects, measured in kilograms per cubic
     unit. This is equal to the weight of a cube with side \c 1.
 
@@ -114,19 +120,29 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float PhysicsWorld::minimumTimestep
+    \qmlproperty real PhysicsWorld::minimumTimestep
     This property defines the minimum simulation timestep in milliseconds. The default value is
-    \c 16.667 which corresponds to \c 60 frames per second.
+    \c{1}.
 
     Range: \c{[0, maximumTimestep]}
+
+    \note The simulation timestep works in lockstep with the rendering,
+    meaning a new simulation frame will only be started after a rendered frame
+    has completed. This means that at most one simulation frame will run per
+    rendered frame.
 */
 
 /*!
-    \qmlproperty float PhysicsWorld::maximumTimestep
+    \qmlproperty real PhysicsWorld::maximumTimestep
     This property defines the maximum simulation timestep in milliseconds. The default value is
-    \c 33.333 which corresponds to \c 30 frames per second.
+    \c{33.333}.
 
     Range: \c{[0, inf]}
+
+    \note The simulation timestep works in lockstep with the rendering,
+    meaning a new simulation frame will only be started after a rendered frame
+    has completed. This means that at most one simulation frame will run per
+    rendered frame.
 */
 
 /*!
@@ -170,8 +186,8 @@ QT_BEGIN_NAMESPACE
     \li No threading, simulation will run sequentially.
     \row
     \li Positive
-    \li \c{[1, inf]}
-    \li Specific thread count.
+    \li \c{[1, 256]}
+    \li Specific thread count. Values above 256 are clamped.
     \endtable
 
     The default value is \c{-1}, meaning automatic thread count.
@@ -212,58 +228,30 @@ QT_BEGIN_NAMESPACE
 
 Q_LOGGING_CATEGORY(lcQuick3dPhysics, "qt.quick3d.physics");
 
+// Setting QT_PHYSICS_TIMINGS_FILE to a filepath will generate a csv file with frame timings.
+// Note that if running several PhysicsWorld's the last one to be destructed will overwrite
+// the output file.
+//
+// To view it in gnuplot, run these two commands:
+//
+// set datafile separator ','
+// plot '<QT_PHYSICS_TIMINGS_FILE>' using 1:2 with lines
+//
+// Security note: This file is trusted since it is opened as write-only
+static const QString qtPhysicsTimingsFile = qEnvironmentVariable("QT_PHYSICS_TIMINGS_FILE");
+
 /////////////////////////////////////////////////////////////////////////////
 
-class SimulationWorker : public QObject
+class FrameAnimator : public QQuickFrameAnimation
 {
     Q_OBJECT
 public:
-    SimulationWorker(QPhysXWorld *physx) : m_physx(physx) { }
-
-public slots:
-    void simulateFrame(float minTimestep, float maxTimestep)
+    FrameAnimator() : QQuickFrameAnimation()
     {
-        if (!m_physx->isRunning) {
-            m_timer.start();
-            m_physx->isRunning = true;
-        }
-
-        // Assuming: 0 <= minTimestep <= maxTimestep
-
-        constexpr auto MILLIONTH = 0.000001;
-
-        // If not enough time has elapsed we sleep until it has
-        auto deltaMS = m_timer.nsecsElapsed() * MILLIONTH;
-        while (deltaMS < minTimestep) {
-            auto sleepUSecs = (minTimestep - deltaMS) * 1000.f;
-            QThread::usleep(sleepUSecs);
-            deltaMS = m_timer.nsecsElapsed() * MILLIONTH;
-        }
-        m_timer.restart();
-
-        auto deltaSecs = qMin(float(deltaMS), maxTimestep) * 0.001f;
-        m_physx->scene->simulate(deltaSecs);
-        m_physx->scene->fetchResults(true);
-
-        emit frameDone(deltaSecs);
+        // Needed to start the frame animation
+        classBegin();
+        componentComplete();
     }
-
-    void simulateFrameDesignStudio(float minTimestep, float maxTimestep)
-    {
-        Q_UNUSED(minTimestep);
-        Q_UNUSED(maxTimestep);
-        auto sleepUSecs = 16 * 1000.f; // 16 ms
-        QThread::usleep(sleepUSecs);
-        emit frameDoneDesignStudio();
-    }
-
-signals:
-    void frameDone(float deltaTime);
-    void frameDoneDesignStudio();
-
-private:
-    QPhysXWorld *m_physx = nullptr;
-    QElapsedTimer m_timer;
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -354,6 +342,7 @@ struct QWorldManager
 {
     QVector<QPhysicsWorld *> worlds;
     QVector<QAbstractPhysicsNode *> orphanNodes;
+    QVector<QPhysicsJoint *> orphanJoints;
 };
 
 static QWorldManager worldManager = QWorldManager {};
@@ -370,7 +359,7 @@ void QPhysicsWorld::registerNode(QAbstractPhysicsNode *physicsNode)
 
 void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
 {
-    for (auto world : worldManager.worlds) {
+    for (auto world : std::as_const(worldManager.worlds)) {
         world->m_newPhysicsNodes.removeAll(physicsNode);
         QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
         if (physicsNode->m_backendObject) {
@@ -382,6 +371,32 @@ void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
         world->m_removedPhysicsNodes.insert(physicsNode);
     }
     worldManager.orphanNodes.removeAll(physicsNode);
+}
+
+void QPhysicsWorld::registerJoint(QPhysicsJoint *joint)
+{
+    auto world = getWorld(joint);
+    if (world) {
+        world->m_joints.push_back(joint);
+    } else {
+        worldManager.orphanJoints.push_back(joint);
+    }
+}
+
+void QPhysicsWorld::deregisterJoint(QPhysicsJoint *joint)
+{
+    for (auto world : worldManager.worlds) {
+        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
+        world->m_removedJoints.insert(joint->getPhysXBackend());
+
+        // Swap erase since order does not matter
+        qsizetype idx = world->m_joints.indexOf(joint);
+        if (idx != -1) {
+            world->m_joints.swapItemsAt(idx, world->m_joints.size() - 1);
+            world->m_joints.pop_back();
+        }
+    }
+    worldManager.orphanJoints.removeAll(joint);
 }
 
 void QPhysicsWorld::registerContact(QAbstractPhysicsNode *sender, QAbstractPhysicsNode *receiver,
@@ -413,19 +428,45 @@ QPhysicsWorld::QPhysicsWorld(QObject *parent) : QObject(parent)
 
     worldManager.worlds.push_back(this);
     matchOrphanNodes();
+    matchOrphanJoints();
+
+    m_frameAnimator = new FrameAnimator;
+    connect(m_frameAnimator, &QQuickFrameAnimation::triggered, this,
+            &QPhysicsWorld::simulateFrame);
 }
 
 QPhysicsWorld::~QPhysicsWorld()
 {
-    m_workerThread.quit();
-    m_workerThread.wait();
-    for (auto body : m_physXBodies) {
+    if (m_frameAnimator) {
+        m_frameAnimator->stop();
+        delete m_frameAnimator;
+    }
+
+    if (m_physx->scene && m_physx->isRunning && !m_frameFetched)
+        m_physx->scene->fetchResults(true);
+
+    for (auto body : std::as_const(m_physXBodies)) {
         body->cleanup(m_physx);
         delete body;
     }
+    m_physXBodies.clear();
     m_physx->deleteWorld();
     delete m_physx;
     worldManager.worlds.removeAll(this);
+
+    if (!qtPhysicsTimingsFile.isEmpty()) {
+        if (m_frameTimings.isEmpty()) {
+            qWarning() << "No frame timings saved.";
+        } else if (auto csvFile = QFile(qtPhysicsTimingsFile); csvFile.open(QIODevice::WriteOnly)) {
+            QTextStream out(&csvFile);
+            for (int i = 1; i < m_frameTimings.size(); i++) {
+                out << i << "," << m_frameTimings[i] << '\n';
+            }
+            csvFile.close();
+        } else {
+            qWarning() << "Could not open timings file " << qtPhysicsTimingsFile;
+        }
+    }
 }
 
 void QPhysicsWorld::classBegin() {}
@@ -435,7 +476,6 @@ void QPhysicsWorld::componentComplete()
     if ((!m_running && !m_inDesignStudio) || m_physicsInitialized)
         return;
     initPhysics();
-    emit simulateFrame(m_minTimestep, m_maxTimestep);
 }
 
 QVector3D QPhysicsWorld::gravity() const
@@ -478,6 +518,11 @@ void QPhysicsWorld::setGravity(QVector3D gravity)
     if (m_gravity == gravity)
         return;
 
+    if (!QPhysicsUtils::isFinite(gravity)) {
+        qWarning() << "Warning: 'gravity' must be finite, ignored";
+        return;
+    }
+
     m_gravity = gravity;
     if (m_physx->scene) {
         m_physx->scene->setGravity(QPhysicsUtils::toPhysXType(m_gravity));
@@ -491,12 +536,14 @@ void QPhysicsWorld::setRunning(bool running)
         return;
 
     m_running = running;
-    if (!m_inDesignStudio) {
-        if (m_running && !m_physicsInitialized)
-            initPhysics();
-        if (m_running)
-            emit simulateFrame(m_minTimestep, m_maxTimestep);
-    }
+    if (!m_inDesignStudio && m_running && !m_physicsInitialized)
+        initPhysics();
+
+    if (running)
+        m_frameAnimator->start();
+    else
+        m_frameAnimator->stop();
+
     emit runningChanged(m_running);
 }
 
@@ -531,7 +578,7 @@ void QPhysicsWorld::setViewport(QQuick3DNode *viewport)
     m_viewport = viewport;
 
     // TODO: test this
-    for (auto material : m_debugMaterials)
+    for (auto material : std::as_const(m_debugMaterials))
         delete material;
     m_debugMaterials.clear();
 
@@ -548,6 +595,11 @@ void QPhysicsWorld::setMinimumTimestep(float minTimestep)
 {
     if (qFuzzyCompare(m_minTimestep, minTimestep))
         return;
+
+    if (!qIsFinite(minTimestep)) {
+        qWarning("Minimum timestep must be finite, ignoring");
+        return;
+    }
 
     if (minTimestep > m_maxTimestep) {
         qWarning("Minimum timestep greater than maximum timestep, value clamped");
@@ -570,6 +622,11 @@ void QPhysicsWorld::setMaximumTimestep(float maxTimestep)
 {
     if (qFuzzyCompare(m_maxTimestep, maxTimestep))
         return;
+
+    if (!qIsFinite(maxTimestep)) {
+        qWarning("Maximum timestep must be finite, ignoring");
+        return;
+    }
 
     if (maxTimestep < 0.f) {
         qWarning("Maximum timestep less than zero, value clamped");
@@ -594,12 +651,12 @@ void QPhysicsWorld::setupDebugMaterials(QQuick3DNode *sceneNode)
     for (auto color : { QColorConstants::Svg::chartreuse, QColorConstants::Svg::cyan,
                         QColorConstants::Svg::lightsalmon, QColorConstants::Svg::red,
                         QColorConstants::Svg::blueviolet, QColorConstants::Svg::black }) {
-        auto debugMaterial = new QQuick3DDefaultMaterial();
+        auto debugMaterial = new QQuick3DPrincipledMaterial();
         debugMaterial->setLineWidth(lineWidth);
         debugMaterial->setParentItem(sceneNode);
         debugMaterial->setParent(sceneNode);
-        debugMaterial->setDiffuseColor(color);
-        debugMaterial->setLighting(QQuick3DDefaultMaterial::NoLighting);
+        debugMaterial->setBaseColor(color);
+        debugMaterial->setLighting(QQuick3DPrincipledMaterial::NoLighting);
         debugMaterial->setCullMode(QQuick3DMaterial::NoCulling);
         m_debugMaterials.push_back(debugMaterial);
     }
@@ -630,7 +687,7 @@ void QPhysicsWorld::updateDebugDraw()
     QSet<QPair<QAbstractCollisionShape *, QAbstractPhysXNode *>> currentCollisionShapes;
     currentCollisionShapes.reserve(m_collisionShapeDebugModels.size());
 
-    for (QAbstractPhysXNode *node : m_physXBodies) {
+    for (QAbstractPhysXNode *node : std::as_const(m_physXBodies)) {
         if (!node->debugGeometryCapability())
             continue;
 
@@ -894,7 +951,8 @@ static void collectPhysicsNodes(QQuick3DObject *node, QList<QAbstractPhysicsNode
         return;
     }
 
-    for (QQuick3DObject *child : node->childItems())
+    auto childItems = node->childItems();
+    for (QQuick3DObject *child : std::as_const(childItems))
         collectPhysicsNodes(child, nodes);
 }
 
@@ -916,7 +974,7 @@ void QPhysicsWorld::updateDebugDrawDesignStudio()
     activePhysicsNodes.reserve(m_collisionShapeDebugModels.size());
     collectPhysicsNodes(m_scene, activePhysicsNodes);
 
-    for (QAbstractPhysicsNode *node : activePhysicsNodes) {
+    for (QAbstractPhysicsNode *node : std::as_const(activePhysicsNodes)) {
 
         const auto &collisionShapes = node->getCollisionShapesList();
         const int materialIdx = 0; // Just take first material
@@ -1076,7 +1134,7 @@ void QPhysicsWorld::disableDebugDraw()
 {
     m_hasIndividualDebugDraw = false;
 
-    for (QAbstractPhysXNode *body : m_physXBodies) {
+    for (QAbstractPhysXNode *body : std::as_const(m_physXBodies)) {
         const auto &collisionShapes = body->frontendNode->getCollisionShapesList();
         const int length = collisionShapes.length();
         for (int idx = 0; idx < length; idx++) {
@@ -1109,7 +1167,7 @@ void QPhysicsWorld::setTypicalLength(float typicalLength)
     if (qFuzzyCompare(typicalLength, m_typicalLength))
         return;
 
-    if (typicalLength <= 0.f) {
+    if (!qIsFinite(typicalLength) || typicalLength <= 0.f) {
         qWarning() << "Warning: 'typicalLength' value less than zero, ignored";
         return;
     }
@@ -1129,6 +1187,11 @@ void QPhysicsWorld::setTypicalSpeed(float typicalSpeed)
 {
     if (qFuzzyCompare(typicalSpeed, m_typicalSpeed))
         return;
+
+    if (!qIsFinite(typicalSpeed) || typicalSpeed <= 0.f) {
+        qWarning() << "Warning: 'typicalSpeed' must be finite and greater than zero, ignored";
+        return;
+    }
 
     if (m_physicsInitialized) {
         qWarning() << "Warning: Changing 'typicalSpeed' after physics is initialized will have "
@@ -1158,12 +1221,14 @@ float QPhysicsWorld::maximumTimestep() const
 
 void QPhysicsWorld::setDefaultDensity(float defaultDensity)
 {
+    defaultDensity = qBound(0.0000001f, defaultDensity, PX_MAX_F32);
+
     if (qFuzzyCompare(m_defaultDensity, defaultDensity))
         return;
     m_defaultDensity = defaultDensity;
 
     // Go through all dynamic rigid bodies and update the default density
-    for (QAbstractPhysXNode *body : m_physXBodies)
+    for (QAbstractPhysXNode *body : std::as_const(m_physXBodies))
         body->updateDefaultDensity(m_defaultDensity);
 
     emit defaultDensityChanged(defaultDensity);
@@ -1176,9 +1241,16 @@ void QPhysicsWorld::cleanupRemovedNodes()
     m_physXBodies.removeIf([this](QAbstractPhysXNode *body) {
                                return body->cleanupIfRemoved(m_physx);
                            });
-    // We don't need to lock the mutex here since the simulation
-    // worker is waiting
     m_removedPhysicsNodes.clear();
+}
+
+void QPhysicsWorld::cleanupRemovedJoints()
+{
+    for (physx::PxJoint *joint : m_removedJoints) {
+        if (joint)
+            joint->release();
+    }
+    m_removedJoints.clear();
 }
 
 void QPhysicsWorld::initPhysics()
@@ -1187,30 +1259,64 @@ void QPhysicsWorld::initPhysics()
 
     const unsigned int numThreads = m_numThreads >= 0 ? m_numThreads : qMax(0, QThread::idealThreadCount());
     m_physx->createScene(m_typicalLength, m_typicalSpeed, m_gravity, m_enableCCD, this, numThreads);
-
-    // Setup worker thread
-    SimulationWorker *worker = new SimulationWorker(m_physx);
-    worker->moveToThread(&m_workerThread);
-    connect(&m_workerThread, &QThread::finished, worker, &QObject::deleteLater);
-    if (m_inDesignStudio) {
-        connect(this, &QPhysicsWorld::simulateFrame, worker,
-                &SimulationWorker::simulateFrameDesignStudio);
-        connect(worker, &SimulationWorker::frameDoneDesignStudio, this,
-                &QPhysicsWorld::frameFinishedDesignStudio);
-    } else {
-        connect(this, &QPhysicsWorld::simulateFrame, worker, &SimulationWorker::simulateFrame);
-        connect(worker, &SimulationWorker::frameDone, this, &QPhysicsWorld::frameFinished);
-    }
-    m_workerThread.start();
-
+    m_frameAnimator->start();
     m_physicsInitialized = true;
+}
+
+void QPhysicsWorld::simulateFrame()
+{
+    constexpr double MILLIONTH = 0.000001;
+    constexpr double THOUSANDTH = 0.001;
+
+    if (m_inDesignStudio) {
+        frameFinishedDesignStudio();
+        return;
+    }
+
+    if (!m_physx->isRunning) {
+        m_timer.start();
+        m_physx->isRunning = true;
+        const double minTimestepSecs = m_minTimestep * 0.001;
+        m_physx->scene->simulate(minTimestepSecs);
+        m_currTimeStep = minTimestepSecs;
+        return;
+    }
+
+    // Frame not ready yet
+    if (!m_frameFetched && !m_physx->scene->checkResults()) {
+        return;
+    }
+
+    // Frame ready, fetch and finish it
+    if (!m_frameFetched) {
+        m_physx->scene->fetchResults(true);
+        frameFinished(m_currTimeStep);
+        m_frameFetched = true;
+        if (Q_UNLIKELY(!qtPhysicsTimingsFile.isEmpty())) {
+            const double deltaMS = m_timer.nsecsElapsed() * MILLIONTH;
+            m_frameTimings.append(deltaMS);
+        }
+    }
+
+    // Assuming: 0 <= minTimestep <= maxTimestep
+    const double deltaMS = m_timer.nsecsElapsed() * MILLIONTH;
+    if (deltaMS < m_minTimestep)
+        return;
+    const double deltaSecs = qMin<double>(deltaMS, m_maxTimestep) * THOUSANDTH;
+    m_timer.restart();
+    m_physx->scene->simulate(deltaSecs);
+    m_frameFetched = false;
+    m_currTimeStep = deltaSecs;
 }
 
 void QPhysicsWorld::frameFinished(float deltaTime)
 {
     matchOrphanNodes();
+    matchOrphanJoints();
     emitContactCallbacks();
     cleanupRemovedNodes();
+    cleanupRemovedJoints();
+
     for (auto *node : std::as_const(m_newPhysicsNodes)) {
         auto *body = node->createPhysXBackend();
         body->init(this, m_physx);
@@ -1230,10 +1336,11 @@ void QPhysicsWorld::frameFinished(float deltaTime)
         physXBody->sync(deltaTime, transformCache);
     }
 
-    updateDebugDraw();
+    for (QPhysicsJoint *joint : std::as_const(m_joints)) {
+        joint->updatePhysXBackend();
+    }
 
-    if (m_running)
-        emit simulateFrame(m_minTimestep, m_maxTimestep);
+    updateDebugDraw();
     emit frameDone(deltaTime * 1000);
 }
 
@@ -1241,19 +1348,18 @@ void QPhysicsWorld::frameFinishedDesignStudio()
 {
     // Note sure if this is needed but do it anyway
     matchOrphanNodes();
+    matchOrphanJoints();
     emitContactCallbacks();
     cleanupRemovedNodes();
     // Ignore new physics nodes, we find them from the scene node anyway
     m_newPhysicsNodes.clear();
 
     updateDebugDrawDesignStudio();
-
-    emit simulateFrame(m_minTimestep, m_maxTimestep);
 }
 
 QPhysicsWorld *QPhysicsWorld::getWorld(QQuick3DNode *node)
 {
-    for (QPhysicsWorld *world : worldManager.worlds) {
+    for (QPhysicsWorld *world : std::as_const(worldManager.worlds)) {
         if (!world->m_scene) {
             continue;
         }
@@ -1268,6 +1374,30 @@ QPhysicsWorld *QPhysicsWorld::getWorld(QQuick3DNode *node)
             nodeCurr = nodeCurr->parentNode();
             if (nodeCurr == world->m_scene)
                 return world;
+        }
+    }
+
+    return nullptr;
+}
+
+QPhysicsWorld *QPhysicsWorld::getWorld(QPhysicsJoint *joint)
+{
+    for (QPhysicsWorld *world : worldManager.worlds) {
+        if (!world->m_scene) {
+            continue;
+        }
+
+        QObject *nodeCurr = joint;
+
+        while (nodeCurr->parent()) {
+            nodeCurr = nodeCurr->parent();
+            if (nodeCurr == world->m_scene) {
+                return world;
+            } else if (auto view3d = qobject_cast<QQuick3DViewport *>(nodeCurr);
+                       view3d && view3d->scene() == world->m_scene) {
+                // HACK? if the parent is a view3d, check against its "implicit" scene
+                return world;
+            }
         }
     }
 
@@ -1291,6 +1421,29 @@ void QPhysicsWorld::matchOrphanNodes()
             // swap-erase
             worldManager.orphanNodes.swapItemsAt(idx, numNodes - 1);
             worldManager.orphanNodes.pop_back();
+            numNodes--;
+        } else {
+            idx++;
+        }
+    }
+}
+
+void QPhysicsWorld::matchOrphanJoints()
+{
+    if (worldManager.orphanJoints.isEmpty())
+        return;
+
+    qsizetype numNodes = worldManager.orphanJoints.length();
+    qsizetype idx = 0;
+
+    while (idx < numNodes) {
+        auto node = worldManager.orphanJoints[idx];
+        auto world = getWorld(node);
+        if (world == this) {
+            world->m_joints.push_back(node);
+            // swap-erase
+            worldManager.orphanJoints.swapItemsAt(idx, numNodes - 1);
+            worldManager.orphanJoints.pop_back();
             numNodes--;
         } else {
             idx++;
@@ -1326,7 +1479,7 @@ void QPhysicsWorld::findPhysicsNodes()
 
 void QPhysicsWorld::emitContactCallbacks()
 {
-    for (const QPhysicsWorld::BodyContact &contact : m_registeredContacts) {
+    for (const QPhysicsWorld::BodyContact &contact : std::as_const(m_registeredContacts)) {
         if (m_removedPhysicsNodes.contains(contact.sender)
             || m_removedPhysicsNodes.contains(contact.receiver))
             continue;
@@ -1369,13 +1522,13 @@ void QPhysicsWorld::setScene(QQuick3DNode *newScene)
     m_scene = newScene;
 
     // Delete all nodes since they are associated with the previous scene
-    for (auto body : m_physXBodies) {
+    for (auto body : std::as_const(m_physXBodies)) {
         deregisterNode(body->frontendNode);
     }
 
     // Check if scene is already used by another world
     bool sceneOK = true;
-    for (QPhysicsWorld *world : worldManager.worlds) {
+    for (QPhysicsWorld *world : std::as_const(worldManager.worlds)) {
         if (world != this && world->scene() == newScene) {
             sceneOK = false;
             qWarning() << "Warning: scene already associated with physics world";
@@ -1394,8 +1547,11 @@ int QPhysicsWorld::numThreads() const
 
 void QPhysicsWorld::setNumThreads(int newNumThreads)
 {
+    newNumThreads = qMin(newNumThreads, 256);
+
     if (m_numThreads == newNumThreads)
         return;
+
     m_numThreads = newNumThreads;
     emit numThreadsChanged();
 }

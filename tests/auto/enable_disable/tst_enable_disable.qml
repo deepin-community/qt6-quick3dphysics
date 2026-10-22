@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 import QtCore
+import QtQuick
 import QtTest
 import QtQuick3D
 import QtQuick3D.Physics
-import QtQuick
+import QtQuick3D.Physics.TestUtils
 
 Item {
     width: 640
@@ -19,8 +20,8 @@ Item {
         forceDebugDraw: true
         typicalLength: 1
         typicalSpeed: 10
-        minimumTimestep: 16.6667
-        maximumTimestep: 16.6667
+        minimumTimestep: 15
+        maximumTimestep: 15
         scene: viewport.scene
         property real elapsedTime: 0
     }
@@ -111,8 +112,8 @@ Item {
                     source: "#Cube"
                     scale: Qt.vector3d(2, 1, 2).times(0.01)
                     eulerRotation: Qt.vector3d(0, 90, 0)
-                    materials: DefaultMaterial {
-                        diffuseColor: "green"
+                    materials: PrincipledMaterial {
+                        baseColor: "green"
                     }
                 }
                 receiveContactReports: true
@@ -146,8 +147,8 @@ Item {
                     source: "#Cube"
                     scale: Qt.vector3d(2, 1, 2).times(0.01)
                     eulerRotation: Qt.vector3d(0, 90, 0)
-                    materials: DefaultMaterial {
-                        diffuseColor: "blue"
+                    materials: PrincipledMaterial {
+                        baseColor: "blue"
                     }
                 }
             }
@@ -224,46 +225,36 @@ Item {
                     source: "#Cube"
                     scale: Qt.vector3d(2, 1, 2).times(0.01)
                     eulerRotation: Qt.vector3d(0, 90, 0)
-                    materials: DefaultMaterial {
-                        diffuseColor: "blue"
+                    materials: PrincipledMaterial {
+                        baseColor: "blue"
                     }
                 }
             }
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "trigger right"
-        when: collisionSphereRight.triggered
-        function triggered() {
-        }
+        goalReached: collisionSphereRight.triggered
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "trigger left"
-        when: collisionSphereLeft.triggered
-        function triggered() {
-        }
+        goalReached: collisionSphereLeft.triggered
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "trigger center"
-        when: collisionSphereCenter.triggered
-        function triggered() {
-        }
+        goalReached: collisionSphereCenter.triggered
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "trigger right box"
-        when: collisionSphereCenter.triggered
-        function triggered() {
-        }
+        goalReached: collisionSphereCenter.triggered
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "trigger center low box"
-        when: boxCentreLow.hasCollided
-        function triggered() {
-        }
+        goalReached: boxCentreLow.hasCollided
     }
 }

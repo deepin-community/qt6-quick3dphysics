@@ -1,5 +1,6 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #ifndef PHYSICSWORLD_H
 #define PHYSICSWORLD_H
@@ -39,6 +40,7 @@ class PxControllerManager;
 class PxConvexMesh;
 class PxTriangleMesh;
 class PxHeightField;
+class PxJoint;
 }
 
 QT_BEGIN_NAMESPACE
@@ -51,8 +53,10 @@ class QAbstractRigidBody;
 class QAbstractPhysXNode;
 class QQuick3DModel;
 class QQuick3DGeometry;
-class QQuick3DDefaultMaterial;
+class QQuick3DPrincipledMaterial;
 class QPhysXWorld;
+class FrameAnimator;
+class QPhysicsJoint;
 
 class Q_QUICK3DPHYSICS_EXPORT QPhysicsWorld : public QObject, public QQmlParserStatus
 {
@@ -108,9 +112,13 @@ public:
     bool isNodeRemoved(QAbstractPhysicsNode *object);
 
     static QPhysicsWorld *getWorld(QQuick3DNode *node);
+    static QPhysicsWorld *getWorld(QPhysicsJoint *joint);
 
     static void registerNode(QAbstractPhysicsNode *physicsNode);
     static void deregisterNode(QAbstractPhysicsNode *physicsNode);
+
+    static void registerJoint(QPhysicsJoint *joint);
+    static void deregisterJoint(QPhysicsJoint *joint);
 
     void registerContact(QAbstractPhysicsNode *sender, QAbstractPhysicsNode *receiver,
                          const QVector<QVector3D> &positions, const QVector<QVector3D> &impulses,
@@ -127,6 +135,8 @@ public:
     Q_REVISION(6, 7) bool reportStaticKinematicCollisions() const;
     Q_REVISION(6, 7)
     void setReportStaticKinematicCollisions(bool newReportStaticKinematicCollisions);
+
+    void cleanupRemovedJoints();
 
 public slots:
     void setGravity(QVector3D gravity);
@@ -153,7 +163,6 @@ signals:
     Q_REVISION(6, 5) void viewportChanged(QQuick3DNode *viewport);
     Q_REVISION(6, 5) void minimumTimestepChanged(float minimumTimestep);
     Q_REVISION(6, 5) void maximumTimestepChanged(float maxTimestep);
-    void simulateFrame(float minTimestep, float maxTimestep);
     Q_REVISION(6, 5) void frameDone(float timestep);
     Q_REVISION(6, 5) void sceneChanged();
     Q_REVISION(6, 7) void numThreadsChanged();
@@ -161,6 +170,7 @@ signals:
     Q_REVISION(6, 7) void reportStaticKinematicCollisionsChanged();
 
 private:
+    void simulateFrame();
     void frameFinished(float deltaTime);
     void frameFinishedDesignStudio();
     void initPhysics();
@@ -170,6 +180,7 @@ private:
     void setupDebugMaterials(QQuick3DNode *sceneNode);
     void disableDebugDraw();
     void matchOrphanNodes();
+    void matchOrphanJoints();
     void findPhysicsNodes();
     void emitContactCallbacks();
 
@@ -220,12 +231,14 @@ private:
     };
 
     QList<QAbstractPhysXNode *> m_physXBodies;
+    QList<QPhysicsJoint *> m_joints;
     QList<QAbstractPhysicsNode *> m_newPhysicsNodes;
     QHash<QPair<QAbstractCollisionShape *, QAbstractPhysicsNode *>, DebugModelHolder>
             m_DesignStudioDebugModels;
     QHash<QPair<QAbstractCollisionShape *, QAbstractPhysXNode *>, DebugModelHolder>
             m_collisionShapeDebugModels;
     QSet<QAbstractPhysicsNode *> m_removedPhysicsNodes;
+    QSet<physx::PxJoint *> m_removedJoints;
     QMutex m_removedPhysicsNodesMutex;
     QList<BodyContact> m_registeredContacts;
 
@@ -233,7 +246,7 @@ private:
     float m_typicalLength = 100.f; // 100 cm
     float m_typicalSpeed = 1000.f; // 1000 cm/s
     float m_defaultDensity = 0.001f; // 1 g/cm^3
-    float m_minTimestep = 16.667f; // 60 fps
+    float m_minTimestep = 1.0f; // 1000 fps
     float m_maxTimestep = 33.333f; // 30 fps
 
     bool m_running = true;
@@ -246,7 +259,7 @@ private:
 
     QPhysXWorld *m_physx = nullptr;
     QQuick3DNode *m_viewport = nullptr;
-    QVector<QQuick3DDefaultMaterial *> m_debugMaterials;
+    QVector<QQuick3DPrincipledMaterial *> m_debugMaterials;
 
     friend class QQuick3DPhysicsMesh; // TODO: better internal API
     friend class QTriangleMeshShape; //####
@@ -256,12 +269,16 @@ private:
     friend class ControllerCallback;
     static physx::PxPhysics *getPhysics();
     static physx::PxCooking *getCooking();
-    QThread m_workerThread;
+    FrameAnimator *m_frameAnimator = nullptr;
     QQuick3DNode *m_scene = nullptr;
     bool m_inDesignStudio = false;
     int m_numThreads = -1;
     bool m_reportKinematicKinematicCollisions = false;
     bool m_reportStaticKinematicCollisions = false;
+    QElapsedTimer m_timer;
+    float m_currTimeStep = 0.f;
+    QList<float> m_frameTimings;
+    bool m_frameFetched = false;
 };
 
 QT_END_NAMESPACE

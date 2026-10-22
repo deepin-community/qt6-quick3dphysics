@@ -1,5 +1,6 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #ifndef QPHYSICSMESHUTILS_P_P_H
 #define QPHYSICSMESHUTILS_P_P_H
@@ -77,7 +78,7 @@ private:
 class QQuick3DPhysicsMeshManager
 {
 public:
-    static QQuick3DPhysicsMesh *getMesh(const QUrl &source, const QObject *contextObject);
+    static QQuick3DPhysicsMesh *getMesh(const QUrl &source, QObject *contextObject);
     static QQuick3DPhysicsMesh *getMesh(QQuick3DGeometry *source);
     static void releaseMesh(QQuick3DPhysicsMesh *mesh);
 

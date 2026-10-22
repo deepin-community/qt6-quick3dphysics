@@ -1,11 +1,14 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qphysicsworld_p.h"
 #include "qphysicscommands_p.h"
 #include "qphysicsutils_p.h"
 #include "qdynamicrigidbody_p.h"
 #include "PxPhysicsAPI.h"
+
+#include <QtGui/qquaternion.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -14,10 +17,17 @@ static bool isKinematicBody(physx::PxRigidBody &body)
     return static_cast<bool>(body.getRigidBodyFlags() & physx::PxRigidBodyFlag::eKINEMATIC);
 }
 
+
+QPhysicsCommand::~QPhysicsCommand()
+    = default;
+
 QPhysicsCommandApplyCentralForce::QPhysicsCommandApplyCentralForce(const QVector3D &inForce)
     : QPhysicsCommand(), force(inForce)
 {
 }
+
+QPhysicsCommandApplyCentralForce::~QPhysicsCommandApplyCentralForce()
+    = default;
 
 void QPhysicsCommandApplyCentralForce::execute(const QDynamicRigidBody &rigidBody,
                                                physx::PxRigidBody &body)
@@ -34,6 +44,9 @@ QPhysicsCommandApplyForce::QPhysicsCommandApplyForce(const QVector3D &inForce,
 {
 }
 
+QPhysicsCommandApplyForce::~QPhysicsCommandApplyForce()
+    = default;
+
 void QPhysicsCommandApplyForce::execute(const QDynamicRigidBody &rigidBody,
                                         physx::PxRigidBody &body)
 {
@@ -49,6 +62,9 @@ QPhysicsCommandApplyTorque::QPhysicsCommandApplyTorque(const QVector3D &inTorque
 {
 }
 
+QPhysicsCommandApplyTorque::~QPhysicsCommandApplyTorque()
+    = default;
+
 void QPhysicsCommandApplyTorque::execute(const QDynamicRigidBody &rigidBody,
                                          physx::PxRigidBody &body)
 {
@@ -62,6 +78,9 @@ QPhysicsCommandApplyCentralImpulse::QPhysicsCommandApplyCentralImpulse(const QVe
     : QPhysicsCommand(), impulse(inImpulse)
 {
 }
+
+QPhysicsCommandApplyCentralImpulse::~QPhysicsCommandApplyCentralImpulse()
+    = default;
 
 void QPhysicsCommandApplyCentralImpulse::execute(const QDynamicRigidBody &rigidBody,
                                                  physx::PxRigidBody &body)
@@ -77,6 +96,9 @@ QPhysicsCommandApplyImpulse::QPhysicsCommandApplyImpulse(const QVector3D &inImpu
     : QPhysicsCommand(), impulse(inImpulse), position(inPosition)
 {
 }
+
+QPhysicsCommandApplyImpulse::~QPhysicsCommandApplyImpulse()
+    = default;
 
 void QPhysicsCommandApplyImpulse::execute(const QDynamicRigidBody &rigidBody,
                                           physx::PxRigidBody &body)
@@ -94,6 +116,9 @@ QPhysicsCommandApplyTorqueImpulse::QPhysicsCommandApplyTorqueImpulse(const QVect
 {
 }
 
+QPhysicsCommandApplyTorqueImpulse::~QPhysicsCommandApplyTorqueImpulse()
+    = default;
+
 void QPhysicsCommandApplyTorqueImpulse::execute(const QDynamicRigidBody &rigidBody,
                                                 physx::PxRigidBody &body)
 {
@@ -110,6 +135,9 @@ QPhysicsCommandSetAngularVelocity::QPhysicsCommandSetAngularVelocity(
 {
 }
 
+QPhysicsCommandSetAngularVelocity::~QPhysicsCommandSetAngularVelocity()
+    = default;
+
 void QPhysicsCommandSetAngularVelocity::execute(const QDynamicRigidBody &rigidBody,
                                                 physx::PxRigidBody &body)
 {
@@ -123,6 +151,9 @@ QPhysicsCommandSetLinearVelocity::QPhysicsCommandSetLinearVelocity(
 {
 }
 
+QPhysicsCommandSetLinearVelocity::~QPhysicsCommandSetLinearVelocity()
+    = default;
+
 void QPhysicsCommandSetLinearVelocity::execute(const QDynamicRigidBody &rigidBody,
                                                physx::PxRigidBody &body)
 {
@@ -131,6 +162,9 @@ void QPhysicsCommandSetLinearVelocity::execute(const QDynamicRigidBody &rigidBod
 }
 
 QPhysicsCommandSetMass::QPhysicsCommandSetMass(float inMass) : QPhysicsCommand(), mass(inMass) { }
+
+QPhysicsCommandSetMass::~QPhysicsCommandSetMass()
+    = default;
 
 void QPhysicsCommandSetMass::execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body)
 {
@@ -165,6 +199,9 @@ QPhysicsCommandSetMassAndInertiaMatrix::QPhysicsCommandSetMassAndInertiaMatrix(
 {
 }
 
+QPhysicsCommandSetMassAndInertiaMatrix::~QPhysicsCommandSetMassAndInertiaMatrix()
+    = default;
+
 void QPhysicsCommandSetMassAndInertiaMatrix::execute(const QDynamicRigidBody &rigidBody,
                                                      physx::PxRigidBody &body)
 {
@@ -176,8 +213,12 @@ void QPhysicsCommandSetMassAndInertiaMatrix::execute(const QDynamicRigidBody &ri
 
     physx::PxQuat massFrame;
     physx::PxVec3 diagTensor = physx::PxDiagonalize(QPhysicsUtils::toPhysXType(inertia), massFrame);
-    if ((diagTensor.x <= 0.0f) || (diagTensor.y <= 0.0f) || (diagTensor.z <= 0.0f))
-        return; // FIXME: print error?
+    if (!QPhysicsUtils::isFinite(diagTensor) || diagTensor.x <= 0.0f || diagTensor.y <= 0.0f
+        || diagTensor.z <= 0.0f) {
+        qWarning() << "Invalid inertiaMatrix, does not diagonalize to a positive-definite "
+                      "tensor, ignoring.";
+        return;
+    }
 
     body.setCMassLocalPose(physx::PxTransform(
             QPhysicsUtils::toPhysXType(rigidBody.centerOfMassPosition()), massFrame));
@@ -190,6 +231,9 @@ QPhysicsCommandSetDensity::QPhysicsCommandSetDensity(float inDensity)
 {
 }
 
+QPhysicsCommandSetDensity::~QPhysicsCommandSetDensity()
+    = default;
+
 void QPhysicsCommandSetDensity::execute(const QDynamicRigidBody &rigidBody,
                                         physx::PxRigidBody &body)
 {
@@ -199,19 +243,16 @@ void QPhysicsCommandSetDensity::execute(const QDynamicRigidBody &rigidBody,
         return;
     }
 
-    const float clampedDensity = qMax(0.0000001, density);
-    if (clampedDensity != density) {
-        qWarning() << "Clamping density " << density;
-        return;
-    }
-
-    physx::PxRigidBodyExt::updateMassAndInertia(body, clampedDensity);
+    physx::PxRigidBodyExt::updateMassAndInertia(body, density);
 }
 
 QPhysicsCommandSetIsKinematic::QPhysicsCommandSetIsKinematic(bool inIsKinematic)
     : QPhysicsCommand(), isKinematic(inIsKinematic)
 {
 }
+
+QPhysicsCommandSetIsKinematic::~QPhysicsCommandSetIsKinematic()
+    = default;
 
 void QPhysicsCommandSetIsKinematic::execute(const QDynamicRigidBody &rigidBody,
                                             physx::PxRigidBody &body)
@@ -230,6 +271,9 @@ QPhysicsCommandSetGravityEnabled::QPhysicsCommandSetGravityEnabled(bool inGravit
 {
 }
 
+QPhysicsCommandSetGravityEnabled::~QPhysicsCommandSetGravityEnabled()
+    = default;
+
 void QPhysicsCommandSetGravityEnabled::execute(const QDynamicRigidBody &rigidBody,
                                                physx::PxRigidBody &body)
 {
@@ -241,6 +285,9 @@ QPhysicsCommandReset::QPhysicsCommandReset(QVector3D inPosition, QVector3D inEul
     : QPhysicsCommand(), position(inPosition), eulerRotation(inEulerRotation)
 {
 }
+
+QPhysicsCommandReset::~QPhysicsCommandReset()
+    = default;
 
 void QPhysicsCommandReset::execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body)
 {
@@ -262,5 +309,8 @@ QPhysicsCommandSetMassAndInertiaTensor::QPhysicsCommandSetMassAndInertiaTensor(
     : QPhysicsCommand(), mass(inMass), inertia(inInertia)
 {
 }
+
+QPhysicsCommandSetMassAndInertiaTensor::~QPhysicsCommandSetMassAndInertiaTensor()
+    = default;
 
 QT_END_NAMESPACE

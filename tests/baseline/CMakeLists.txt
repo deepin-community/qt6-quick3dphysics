@@ -1,4 +1,10 @@
 # Copyright (C) 2023 The Qt Company Ltd.
 # SPDX-License-Identifier: BSD-3-Clause
-add_subdirectory(scenegrabber)
-add_subdirectory(scenegraph)
+
+# Special case: test includes the QBaselineTest module sources from qtbase directly
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../../qtbase/tests/baseline/shared")
+    add_subdirectory(scenegrabber)
+    if (QT_FEATURE_process)
+        add_subdirectory(qtquick3dphysics)
+    endif()
+endif()

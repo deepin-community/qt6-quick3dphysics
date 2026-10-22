@@ -3,8 +3,9 @@
 import QtQuick
 import QtTest
 import QtQuick3D
+import QtQuick3D.Helpers
 import QtQuick3D.Physics
-import QtQuick3D.Physics.Helpers
+import QtQuick3D.Physics.TestUtils
 import TileGeometry
 
 // Drops two balls on two tiles. One tile with a hole and one without.
@@ -18,8 +19,8 @@ Item {
 
     PhysicsWorld {
         scene: viewport.scene
-        minimumTimestep: 16
-        maximumTimestep: 16
+        minimumTimestep: 15
+        maximumTimestep: 15
         forceDebugDraw: false
     }
 
@@ -42,7 +43,7 @@ Item {
         DirectionalLight {
             eulerRotation.x: -45
             eulerRotation.y: 45
-            castsShadow: true
+            castsShadow: false
             brightness: 1
             shadowFactor: 100
         }
@@ -54,8 +55,8 @@ Item {
             scale: Qt.vector3d(0.3, 0.3, 0.3)
             Model {
                 source: "#Sphere"
-                materials: DefaultMaterial {
-                    diffuseColor: "yellow"
+                materials: PrincipledMaterial {
+                    baseColor: "yellow"
                 }
             }
             collisionShapes: SphereShape {}
@@ -69,8 +70,8 @@ Item {
             scale: Qt.vector3d(0.3, 0.3, 0.3)
             Model {
                 source: "#Sphere"
-                materials: DefaultMaterial {
-                    diffuseColor: "yellow"
+                materials: PrincipledMaterial {
+                    baseColor: "yellow"
                 }
             }
             collisionShapes: SphereShape {}
@@ -85,8 +86,8 @@ Item {
                     id: tileLeftGeometry
                     hasHole: false
                 }
-                materials: DefaultMaterial {
-                    diffuseColor: "blue"
+                materials: PrincipledMaterial {
+                    baseColor: "blue"
                 }
             }
 
@@ -110,8 +111,8 @@ Item {
                     id: tileRightGeometry
                     hasHole: true
                 }
-                materials: DefaultMaterial {
-                    diffuseColor: "red"
+                materials: PrincipledMaterial {
+                    baseColor: "red"
                 }
             }
             collisionShapes: TriangleMeshShape {
@@ -135,8 +136,8 @@ Item {
             Model {
                 source: "#Rectangle"
                 scale: Qt.vector3d(10, 10, 1)
-                materials: DefaultMaterial {
-                    diffuseColor: "green"
+                materials: PrincipledMaterial {
+                    baseColor: "green"
                 }
                 castsShadows: false
                 receivesShadows: true
@@ -161,9 +162,8 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "scene"
-        when: !tileLeft.ballHit && tileRight.ballHit && floor.ballHit
-        function triggered() {  }
+        goalReached: !tileLeft.ballHit && tileRight.ballHit && floor.ballHit
     }
 }

@@ -1,8 +1,10 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qphysxdynamicbody_p.h"
 
+#include "PxPhysics.h"
 #include "PxRigidDynamic.h"
 
 #include "qphysicscommands_p.h"
@@ -10,13 +12,16 @@
 #include "qphysicsworld_p.h"
 #include "qabstractphysicsbody_p.h"
 #include "qdynamicrigidbody_p.h"
+#include "qstaticphysxobjects_p.h"
+
+#include <QtGui/qquaternion.h>
 
 QT_BEGIN_NAMESPACE
 
 static void processCommandQueue(QQueue<QPhysicsCommand *> &commandQueue,
                                 const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body)
 {
-    for (auto command : commandQueue) {
+    for (auto command : std::as_const(commandQueue)) {
         command->execute(rigidBody, body);
         delete command;
     }
@@ -96,11 +101,37 @@ static physx::PxTransform getPhysXWorldTransform(const QMatrix4x4 transform)
 
 QPhysXDynamicBody::QPhysXDynamicBody(QDynamicRigidBody *frontEnd) : QPhysXRigidBody(frontEnd) { }
 
+void QPhysXDynamicBody::createActor(QPhysXWorld *physX)
+{
+    auto *dynamicRigidBody = static_cast<QDynamicRigidBody *>(frontendNode);
+    if (!dynamicRigidBody->isKinematic()) {
+        QPhysXRigidBody::createActor(physX);
+        return;
+    }
+
+    // A kinematic body is never moved by setGlobalPose()/the plain position/rotation
+    // properties; it's driven by setKinematicTarget() using kinematicPosition()/
+    // kinematicRotation() (see sync() below). If the actor were created at the plain,
+    // usually-unset position/rotation instead, the first simulated step would snap it
+    // over to its real kinematic pose in one step, which can violently yank anything
+    // jointed to it. So the initial pose must already match the kinematic one.
+    QHash<QQuick3DNode *, QMatrix4x4> transformCache;
+    const QMatrix4x4 transform = calculateKinematicNodeTransform(dynamicRigidBody, transformCache);
+    physx::PxTransform trf = getPhysXWorldTransform(transform);
+    if (!trf.isSane()) {
+        qWarning() << "DynamicRigidBody: kinematic position/rotation is not finite, using "
+                      "identity instead.";
+        trf = physx::PxTransform(physx::PxIdentity);
+    }
+    auto &s_physx = StaticPhysXObjects::getReference();
+    actor = s_physx.physics->createRigidDynamic(trf);
+}
+
 DebugDrawBodyType QPhysXDynamicBody::getDebugDrawBodyType()
 {
-    auto dynamicActor = static_cast<physx::PxRigidDynamic *>(actor);
-    return dynamicActor->isSleeping() ? DebugDrawBodyType::DynamicSleeping
-                                      : DebugDrawBodyType::DynamicAwake;
+    auto *dynamicRigidBody = static_cast<QDynamicRigidBody *>(frontendNode);
+    return dynamicRigidBody->isSleeping() ? DebugDrawBodyType::DynamicSleeping
+                                          : DebugDrawBodyType::DynamicAwake;
 }
 
 void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache)
@@ -116,7 +147,13 @@ void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> 
         // bodies can occur in other bodies we need to calculate the tranform recursively for all
         // parents. To save some computation we cache these transforms in 'transformCache'.
         QMatrix4x4 transform = calculateKinematicNodeTransform(dynamicRigidBody, transformCache);
-        dynamicActor->setKinematicTarget(getPhysXWorldTransform(transform));
+        const physx::PxTransform worldTransform = getPhysXWorldTransform(transform);
+        if (worldTransform.isSane()) {
+            dynamicActor->setKinematicTarget(worldTransform);
+        } else {
+            qWarning() << "DynamicRigidBody: kinematic transform is not finite, keeping "
+                          "previous target.";
+        }
     } else {
         dynamicActor->setRigidDynamicLockFlags(getLockFlags(dynamicRigidBody));
     }
@@ -128,6 +165,8 @@ void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> 
         if (!disabled && !dynamicRigidBody->isKinematic())
             dynamicActor->wakeUp();
     }
+
+    dynamicRigidBody->setIsSleeping(dynamicActor->isSleeping());
 
     QPhysXActorBody::sync(deltaTime, transformCache);
 }
@@ -179,11 +218,16 @@ void QPhysXDynamicBody::rebuildDirtyShapes(QPhysicsWorld *world, QPhysXWorld *ph
         drb->setIsKinematic(true);
     }
 
+    const bool isKinematic = drb->isKinematic();
     auto *dynamicBody = static_cast<physx::PxRigidDynamic *>(actor);
-    dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, drb->isKinematic());
+    dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, isKinematic);
 
-    if (world->enableCCD() && !drb->isKinematic()) // CCD not supported for kinematic bodies
-        dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_CCD, true);
+    if (world->enableCCD()) {
+        // Regular sweep-based CCD is only available for non-kinematic bodies but speculative CCD
+        // is available for kinematic bodies so we use that.
+        dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_CCD, !isKinematic);
+        dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_SPECULATIVE_CCD, isKinematic);
+    }
 
     setShapesDirty(false);
 }

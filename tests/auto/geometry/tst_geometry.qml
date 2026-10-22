@@ -3,10 +3,10 @@
 import QtQuick
 import QtTest
 import QtQuick3D
+import QtQuick3D.Helpers
 import QtQuick3D.Physics
-import QtQuick3D.Physics.Helpers
-
-import Geometry
+import QtQuick3D.Physics.TestUtils
+import PhysicsTest.Geometry
 
 Item {
     width: 640
@@ -37,7 +37,7 @@ Item {
         DirectionalLight {
             eulerRotation.x: -45
             eulerRotation.y: 45
-            castsShadow: true
+            castsShadow: false
             brightness: 1
             shadowFactor: 100
         }
@@ -49,8 +49,8 @@ Item {
             Model {
                 source: "#Rectangle"
                 scale: Qt.vector3d(10, 10, 1)
-                materials: DefaultMaterial {
-                    diffuseColor: "green"
+                materials: PrincipledMaterial {
+                    baseColor: "green"
                 }
                 castsShadows: false
                 receivesShadows: true
@@ -134,15 +134,13 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "box hit"
-        when: dynamicBox.hit
-        function triggered() {  }
+        goalReached: dynamicBox.hit
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "capsule hit"
-        when: dynamicCapsule.hit
-        function triggered() {  }
+        goalReached: dynamicCapsule.hit
     }
 }

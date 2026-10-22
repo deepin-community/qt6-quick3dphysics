@@ -3,9 +3,10 @@
 import QtQuick
 import QtTest
 import QtQuick3D
+import QtQuick3D.Helpers
 import QtQuick3D.Physics
-import QtQuick3D.Physics.Helpers
-import Geometry
+import QtQuick3D.Physics.TestUtils
+import PhysicsTest.GeometrySource
 
 // This test tries repeatedly adding and removing a geometry from a triangle mesh.
 // It should fallback to the source property.
@@ -17,8 +18,8 @@ Item {
 
     PhysicsWorld {
         scene: viewport.scene
-        minimumTimestep: 16
-        maximumTimestep: 16
+        minimumTimestep: 15
+        maximumTimestep: 15
         forceDebugDraw: true
     }
 
@@ -41,7 +42,7 @@ Item {
         DirectionalLight {
             eulerRotation.x: -45
             eulerRotation.y: 45
-            castsShadow: true
+            castsShadow: false
             brightness: 1
             shadowFactor: 100
         }
@@ -53,8 +54,8 @@ Item {
             Model {
                 source: "#Rectangle"
                 scale: Qt.vector3d(10, 10, 1)
-                materials: DefaultMaterial {
-                    diffuseColor: "green"
+                materials: PrincipledMaterial {
+                    baseColor: "green"
                 }
                 castsShadows: false
                 receivesShadows: true
@@ -111,9 +112,9 @@ Item {
                 let shape = Qt.createQmlObject(`
                     import QtQuick
                     import QtQuick3D
+                    import QtQuick3D.Helpers
                     import QtQuick3D.Physics
-                    import QtQuick3D.Physics.Helpers
-                    import Geometry
+                    import PhysicsTest.GeometrySource
                     ExampleTriangleGeometry { }
                     `,
                     frameAnimation,
@@ -124,9 +125,8 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "scene"
-        when: dynamicBox.hit
-        function triggered() {  }
+        goalReached: dynamicBox.hit
     }
 }

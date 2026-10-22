@@ -1,11 +1,15 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qabstractphysicsnode_p.h"
 #include <QtQuick3D/private/qquick3dobject_p.h>
 #include <foundation/PxTransform.h>
 
 #include "qphysicsworld_p.h"
+
+#include <QtGui/qquaternion.h>
+
 QT_BEGIN_NAMESPACE
 
 /*!
@@ -25,7 +29,7 @@ QT_BEGIN_NAMESPACE
     This property contains the list of collision shapes. These shapes will be combined and act as a
     single rigid body when interacting with other bodies.
 
-    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
+    \sa {Qt Quick 3D Physics Shapes, Bodies and Joints}
 */
 
 /*!
@@ -67,7 +71,7 @@ QT_BEGIN_NAMESPACE
 
     Default value is \c 0.
 
-    Range: \c{[0, 32]}
+    Range: \c{[0, 31]}
 
     \sa PhysicsNode::filterIgnoreGroups
 */
@@ -303,6 +307,14 @@ void QAbstractPhysicsNode::setfilterGroup(int newfilterGroup)
 {
     if (m_filterGroup == newfilterGroup)
         return;
+
+    if (newfilterGroup < 0 || newfilterGroup >= 32) {
+        qWarning() << "PhysicsNode: filterGroup" << newfilterGroup
+                   << "is out of range [0, 31], ignoring. Values outside this range are"
+                      " silently excluded from collision filtering by the underlying engine.";
+        return;
+    }
+
     m_filterGroup = newfilterGroup;
     m_filtersDirty = true;
     emit filterGroupChanged();

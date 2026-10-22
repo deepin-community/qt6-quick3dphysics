@@ -1,10 +1,14 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qdynamicrigidbody_p.h"
 #include "qphysicscommands_p.h"
+#include "qphysicsutils_p.h"
 #include "qphysicsworld_p.h"
 #include "physxnode/qphysxdynamicbody_p.h"
+
+#include <foundation/PxSimpleTypes.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -24,7 +28,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float DynamicRigidBody::mass
+    \qmlproperty real DynamicRigidBody::mass
 
     This property defines the mass of the body. Note that this is only used when massMode is not
     \c {DynamicRigidBody.CustomDensity} or \c {DynamicRigidBody.DefaultDensity}. Also note that
@@ -38,7 +42,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float DynamicRigidBody::density
+    \qmlproperty real DynamicRigidBody::density
 
     This property defines the density of the body. This is only used when massMode is set to \c
     {DynamicRigidBody.CustomDensity}.
@@ -185,7 +189,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty list<float> DynamicRigidBody::inertiaMatrix
+    \qmlproperty list<real> DynamicRigidBody::inertiaMatrix
 
     Defines the inertia tensor matrix. This is a 3x3 matrix in column-major order. Note that this
     matrix is expected to be diagonalizable. Note that this is only used when massMode is set to
@@ -210,27 +214,27 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty vector3d DynamicRigidBody::kinematicRotation
+    \qmlproperty quaternion DynamicRigidBody::kinematicRotation
     \since 6.5
 
     Defines the rotation of the object when it is kinematic, i.e. when \l isKinematic is set to \c
     true. On each iteration of the simulation the physical object will be updated according to this
     value.
 
-    Default value: \c{(0, 0, 0)}
+    Default value: \c{(1, 0, 0, 0)}
 
     \sa isKinematic, kinematicPosition, kinematicEulerRotation, kinematicPivot
 */
 
 /*!
-    \qmlproperty vector4d DynamicRigidBody::kinematicEulerRotation
+    \qmlproperty vector3d DynamicRigidBody::kinematicEulerRotation
     \since 6.5
 
     Defines the euler rotation of the object when it is kinematic, i.e. when \l isKinematic is set to \c
     true. On each iteration of the simulation the physical object will be updated according to this
     value.
 
-    Default value: \c{(1, 0, 0, 0)}
+    Default value: \c{(0, 0, 0)}
 
     \sa isKinematic, kinematicPosition, kinematicEulerRotation, kinematicPivot
 */
@@ -249,55 +253,64 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::applyCentralForce(vector3d force)
+    \qmlproperty bool DynamicRigidBody::isSleeping
+    \since 6.9
+
+    Is set to \c{true} if the body is sleeping. While it is technically possible to set this property
+    it should be seen as a read-only property that is set on every frame the physics simulation is
+    running.
+*/
+
+/*!
+    \qmlmethod void DynamicRigidBody::applyCentralForce(vector3d force)
 
     Applies  a \a force on the center of the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::applyForce(vector3d force, vector3d position)
+    \qmlmethod void DynamicRigidBody::applyForce(vector3d force, vector3d position)
 
     Applies a \a force at a \a position on the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::applyTorque(vector3d torque)
+    \qmlmethod void DynamicRigidBody::applyTorque(vector3d torque)
 
     Applies a \a torque on the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::applyCentralImpulse(vector3d impulse)
+    \qmlmethod void DynamicRigidBody::applyCentralImpulse(vector3d impulse)
 
     Applies an \a impulse on the center of the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::applyImpulse(vector3d impulse, vector3d position)
+    \qmlmethod void DynamicRigidBody::applyImpulse(vector3d impulse, vector3d position)
 
     Applies an \a impulse at a \a position on the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::applyTorqueImpulse(vector3d impulse)
+    \qmlmethod void DynamicRigidBody::applyTorqueImpulse(vector3d impulse)
 
     Applies a torque \a impulse on the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::setAngularVelocity(vector3d angularVelocity)
+    \qmlmethod void DynamicRigidBody::setAngularVelocity(vector3d angularVelocity)
 
     Sets the \a angularVelocity of the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::setLinearVelocity(vector3d linearVelocity)
+    \qmlmethod void DynamicRigidBody::setLinearVelocity(vector3d linearVelocity)
 
     Sets the \a linearVelocity of the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::reset(vector3d position, vector3d eulerRotation)
+    \qmlmethod void DynamicRigidBody::reset(vector3d position, vector3d eulerRotation)
 
     Resets the body's \a position and \a eulerRotation.
 */
@@ -317,6 +330,12 @@ const QQuaternion &QDynamicRigidBody::centerOfMassRotation() const
 
 void QDynamicRigidBody::setCenterOfMassRotation(const QQuaternion &newCenterOfMassRotation)
 {
+    if (!QPhysicsUtils::isFinite(newCenterOfMassRotation)) {
+        qWarning() << "DynamicRigidBody: centerOfMassRotation must be finite, ignoring"
+                   << newCenterOfMassRotation;
+        return;
+    }
+
     if (qFuzzyCompare(m_centerOfMassRotation, newCenterOfMassRotation))
         return;
     m_centerOfMassRotation = newCenterOfMassRotation;
@@ -335,6 +354,12 @@ const QVector3D &QDynamicRigidBody::centerOfMassPosition() const
 
 void QDynamicRigidBody::setCenterOfMassPosition(const QVector3D &newCenterOfMassPosition)
 {
+    if (!QPhysicsUtils::isFinite(newCenterOfMassPosition)) {
+        qWarning() << "DynamicRigidBody: centerOfMassPosition must be finite, ignoring"
+                   << newCenterOfMassPosition;
+        return;
+    }
+
     if (qFuzzyCompare(m_centerOfMassPosition, newCenterOfMassPosition))
         return;
 
@@ -406,6 +431,13 @@ const QVector3D &QDynamicRigidBody::inertiaTensor() const
 
 void QDynamicRigidBody::setInertiaTensor(const QVector3D &newInertiaTensor)
 {
+    if (!QPhysicsUtils::isFinite(newInertiaTensor) || newInertiaTensor.x() < 0.f
+        || newInertiaTensor.y() < 0.f || newInertiaTensor.z() < 0.f) {
+        qWarning() << "DynamicRigidBody: inertiaTensor" << newInertiaTensor
+                   << "must be finite and non-negative, ignoring.";
+        return;
+    }
+
     if (qFuzzyCompare(m_inertiaTensor, newInertiaTensor))
         return;
     m_inertiaTensor = newInertiaTensor;
@@ -472,7 +504,7 @@ bool QDynamicRigidBody::gravityEnabled() const
 
 void QDynamicRigidBody::setMass(float mass)
 {
-    if (mass < 0.f || qFuzzyCompare(m_mass, mass))
+    if (!qIsFinite(mass) || mass < 0.f || qFuzzyCompare(m_mass, mass))
         return;
 
     switch (m_massMode) {
@@ -501,6 +533,8 @@ float QDynamicRigidBody::density() const
 
 void QDynamicRigidBody::setDensity(float density)
 {
+    density = qBound(0.0000001f, density, PX_MAX_F32);
+
     if (qFuzzyCompare(m_density, density))
         return;
 
@@ -539,6 +573,11 @@ void QDynamicRigidBody::setGravityEnabled(bool gravityEnabled)
 
 void QDynamicRigidBody::setAngularVelocity(const QVector3D &angularVelocity)
 {
+    if (!QPhysicsUtils::isFinite(angularVelocity)) {
+        qWarning() << "DynamicRigidBody: angularVelocity must be finite, ignoring"
+                   << angularVelocity;
+        return;
+    }
     m_commandQueue.enqueue(new QPhysicsCommandSetAngularVelocity(angularVelocity));
 }
 
@@ -581,76 +620,129 @@ void QDynamicRigidBody::updateDefaultDensity(float defaultDensity)
 
 void QDynamicRigidBody::applyCentralForce(const QVector3D &force)
 {
+    if (!QPhysicsUtils::isFinite(force)) {
+        qWarning() << "DynamicRigidBody: applyCentralForce() force must be finite, ignoring"
+                   << force;
+        return;
+    }
     m_commandQueue.enqueue(new QPhysicsCommandApplyCentralForce(force));
 }
 
 void QDynamicRigidBody::applyForce(const QVector3D &force, const QVector3D &position)
 {
+    if (!QPhysicsUtils::isFinite(force) || !QPhysicsUtils::isFinite(position)) {
+        qWarning() << "DynamicRigidBody: applyForce() force/position must be finite, ignoring"
+                   << force << position;
+        return;
+    }
     m_commandQueue.enqueue(new QPhysicsCommandApplyForce(force, position));
 }
 
 void QDynamicRigidBody::applyTorque(const QVector3D &torque)
 {
+    if (!QPhysicsUtils::isFinite(torque)) {
+        qWarning() << "DynamicRigidBody: applyTorque() torque must be finite, ignoring" << torque;
+        return;
+    }
     m_commandQueue.enqueue(new QPhysicsCommandApplyTorque(torque));
 }
 
 void QDynamicRigidBody::applyCentralImpulse(const QVector3D &impulse)
 {
+    if (!QPhysicsUtils::isFinite(impulse)) {
+        qWarning() << "DynamicRigidBody: applyCentralImpulse() impulse must be finite, ignoring"
+                   << impulse;
+        return;
+    }
     m_commandQueue.enqueue(new QPhysicsCommandApplyCentralImpulse(impulse));
 }
 
 void QDynamicRigidBody::applyImpulse(const QVector3D &impulse, const QVector3D &position)
 {
+    if (!QPhysicsUtils::isFinite(impulse) || !QPhysicsUtils::isFinite(position)) {
+        qWarning() << "DynamicRigidBody: applyImpulse() impulse/position must be finite, ignoring"
+                   << impulse << position;
+        return;
+    }
     m_commandQueue.enqueue(new QPhysicsCommandApplyImpulse(impulse, position));
 }
 
 void QDynamicRigidBody::applyTorqueImpulse(const QVector3D &impulse)
 {
+    if (!QPhysicsUtils::isFinite(impulse)) {
+        qWarning() << "DynamicRigidBody: applyTorqueImpulse() impulse must be finite, ignoring"
+                   << impulse;
+        return;
+    }
     m_commandQueue.enqueue(new QPhysicsCommandApplyTorqueImpulse(impulse));
 }
 
 void QDynamicRigidBody::setLinearVelocity(const QVector3D &linearVelocity)
 {
+    if (!QPhysicsUtils::isFinite(linearVelocity)) {
+        qWarning() << "DynamicRigidBody: linearVelocity must be finite, ignoring"
+                   << linearVelocity;
+        return;
+    }
     m_commandQueue.enqueue(new QPhysicsCommandSetLinearVelocity(linearVelocity));
 }
 
 void QDynamicRigidBody::reset(const QVector3D &position, const QVector3D &eulerRotation)
 {
+    if (!QPhysicsUtils::isFinite(position) || !QPhysicsUtils::isFinite(eulerRotation)) {
+        qWarning() << "DynamicRigidBody: reset() position/eulerRotation must be finite, ignoring"
+                   << position << eulerRotation;
+        return;
+    }
     m_commandQueue.enqueue(new QPhysicsCommandReset(position, eulerRotation));
 }
 
 void QDynamicRigidBody::setKinematicRotation(const QQuaternion &rotation)
 {
+    if (!QPhysicsUtils::isFinite(rotation)) {
+        qWarning() << "DynamicRigidBody: kinematicRotation must be finite, ignoring" << rotation;
+        return;
+    }
     if (m_kinematicRotation == rotation)
         return;
 
     m_kinematicRotation = rotation;
-    emit kinematicRotationChanged(m_kinematicRotation);
-    emit kinematicEulerRotationChanged(m_kinematicRotation.getEulerRotation());
+    emit kinematicRotationChanged(m_kinematicRotation.toQuaternion());
+    emit kinematicEulerRotationChanged(m_kinematicRotation.toEulerAngles());
 }
 
 QQuaternion QDynamicRigidBody::kinematicRotation() const
 {
-    return m_kinematicRotation.getQuaternionRotation();
+    return m_kinematicRotation.toQuaternion();
 }
 
 void QDynamicRigidBody::setKinematicEulerRotation(const QVector3D &rotation)
 {
+    if (!QPhysicsUtils::isFinite(rotation)) {
+        qWarning() << "DynamicRigidBody: kinematicEulerRotation must be finite, ignoring"
+                   << rotation;
+        return;
+    }
     if (m_kinematicRotation == rotation)
         return;
 
     m_kinematicRotation = rotation;
-    emit kinematicEulerRotationChanged(m_kinematicRotation);
-    emit kinematicRotationChanged(m_kinematicRotation.getQuaternionRotation());
+    emit kinematicEulerRotationChanged(m_kinematicRotation.toEulerAngles());
+    emit kinematicRotationChanged(m_kinematicRotation.toQuaternion());
 }
 
 QVector3D QDynamicRigidBody::kinematicEulerRotation() const
 {
-    return m_kinematicRotation.getEulerRotation();
+    return m_kinematicRotation.toEulerAngles();
 }
 
 void QDynamicRigidBody::setKinematicPivot(const QVector3D &pivot)
 {
+    if (!QPhysicsUtils::isFinite(pivot)) {
+        qWarning() << "DynamicRigidBody: kinematicPivot must be finite, ignoring" << pivot;
+        return;
+    }
+
     m_kinematicPivot = pivot;
     emit kinematicPivotChanged(m_kinematicPivot);
 }
@@ -660,6 +752,20 @@ QVector3D QDynamicRigidBody::kinematicPivot() const
     return m_kinematicPivot;
 }
 
+bool QDynamicRigidBody::isSleeping() const
+{
+    return m_isSleeping;
+}
+
+void QDynamicRigidBody::setIsSleeping(bool newIsSleeping)
+{
+    if (m_isSleeping == newIsSleeping)
+        return;
+
+    m_isSleeping = newIsSleeping;
+    emit isSleepingChanged(newIsSleeping);
+}
+
 QAbstractPhysXNode *QDynamicRigidBody::createPhysXBackend()
 {
     return new QPhysXDynamicBody(this);
@@ -667,6 +773,11 @@ QAbstractPhysXNode *QDynamicRigidBody::createPhysXBackend()
 
 void QDynamicRigidBody::setKinematicPosition(const QVector3D &position)
 {
+    if (!QPhysicsUtils::isFinite(position)) {
+        qWarning() << "DynamicRigidBody: kinematicPosition must be finite, ignoring" << position;
+        return;
+    }
+
     m_kinematicPosition = position;
     emit kinematicPositionChanged(m_kinematicPosition);
 }

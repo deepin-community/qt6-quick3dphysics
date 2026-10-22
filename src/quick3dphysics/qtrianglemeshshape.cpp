@@ -1,5 +1,6 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qtrianglemeshshape_p.h"
 
@@ -19,7 +20,7 @@ QT_BEGIN_NAMESPACE
     be used with \l StaticRigidBody and \l {DynamicRigidBody::isKinematic}{kinematic bodies}. Use \l
     ConvexMeshShape for non-kinematic dynamic bodies.
 
-    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
+    \sa {Qt Quick 3D Physics Shapes, Bodies and Joints}
 */
 
 /*!

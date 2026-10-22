@@ -1,13 +1,15 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qphysicsmaterial_p.h"
 
 #include <foundation/PxSimpleTypes.h>
 
+// This order clamps a NaN value to max instead of leaving it as NaN.
 static float clamp(float value, float min, float max)
 {
-    return std::max(std::min(value, max), min);
+    return std::max(min, std::min(max, value));
 }
 
 QT_BEGIN_NAMESPACE
@@ -33,7 +35,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float PhysicsMaterial::staticFriction
+    \qmlproperty real PhysicsMaterial::staticFriction
     This property defines the amount of friction that is applied between surfaces that are not
     moving lateral to each-other.
 
@@ -43,7 +45,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float PhysicsMaterial::dynamicFriction
+    \qmlproperty real PhysicsMaterial::dynamicFriction
     This property defines the amount of friction applied between surfaces that are moving relative
     to each-other.
 
@@ -53,7 +55,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float PhysicsMaterial::restitution
+    \qmlproperty real PhysicsMaterial::restitution
     This property defines the coefficient of restitution, or how bouncy the material is.
     The coefficient of restitution of two
     colliding objects is a fractional value representing the ratio of speeds after and before an

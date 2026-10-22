@@ -1,9 +1,11 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+// Qt-Security score:significant reason:default
 
 #include "qphysxcharactercontroller_p.h"
 
 #include "PxRigidDynamic.h"
+#include "PxShape.h"
 #include "characterkinematic/PxController.h"
 #include "characterkinematic/PxControllerManager.h"
 #include "characterkinematic/PxCapsuleController.h"
@@ -37,6 +39,9 @@ public:
         if (!trigger || !other || !trigger->enableShapeHitCallback())
             return;
 
+        if (world->isNodeRemoved(other) || world->isNodeRemoved(trigger))
+            return;
+
         QVector3D position = QPhysicsUtils::toQtType(physx::toVec3(hit.worldPos));
         QVector3D impulse = QPhysicsUtils::toQtType(hit.dir * hit.length);
         QVector3D normal = QPhysicsUtils::toQtType(hit.worldNormal);
@@ -63,7 +68,7 @@ void QPhysXCharacterController::cleanup(QPhysXWorld *physX)
     QAbstractPhysXNode::cleanup(physX);
 }
 
-void QPhysXCharacterController::init(QPhysicsWorld *world, QPhysXWorld *physX)
+void QPhysXCharacterController::init(QPhysicsWorld *world, QPhysXWorld * /*physX*/)
 {
     Q_ASSERT(!controller);
 
@@ -85,7 +90,7 @@ void QPhysXCharacterController::init(QPhysicsWorld *world, QPhysXWorld *physX)
         return;
     }
 
-    createMaterial(physX);
+    updateMaterial();
 
     const QVector3D scale = characterController->sceneScale();
     const qreal heightScale = scale.y();
@@ -141,12 +146,19 @@ void QPhysXCharacterController::sync(float deltaTime,
 
         // Update height
         const float heightNew = heightScale * capsule->height();
-        if (!qFuzzyCompare(controller->getHeight(), heightNew))
-            controller->resize(heightNew);
         // Update radius
         const float radiusNew = 0.5f * radiusScale * capsule->diameter();
-        if (!qFuzzyCompare(controller->getRadius(), radiusNew))
-            controller->setRadius(radiusNew);
+
+        if (!qIsFinite(heightNew) || heightNew <= 0.f || !qIsFinite(radiusNew)
+            || radiusNew <= 0.f) {
+            qWarning() << "CharacterController: scaled capsule height/radius must be finite "
+                          "and positive, ignoring.";
+        } else {
+            if (!qFuzzyCompare(controller->getHeight(), heightNew))
+                controller->resize(heightNew);
+            if (!qFuzzyCompare(controller->getRadius(), radiusNew))
+                controller->setRadius(radiusNew);
+        }
         // Update stepOffset
         const float stepOffsetNew = 0.25f * heightNew;
         if (!qFuzzyCompare(controller->getStepOffset(), stepOffsetNew))
@@ -174,15 +186,21 @@ void QPhysXCharacterController::sync(float deltaTime,
                 controller->move(displacement, displacement.magnitude() / 100, deltaTime, {});
         characterController->setCollisions(QCharacterController::Collisions(uint(collisions)));
     }
-    // QCharacterController has a material property, but we don't inherit from
-    // QPhysXMaterialBody, so we create the material manually in init()
-    // TODO: handle material changes
+    // Materials are shared between nodes, so a change of the material properties moves this
+    // node to another material, which the shape of the controller then has to be pointed at.
+    // The shape is created exclusive to the actor of the controller, so it stays writable.
+    if (updateMaterial() && material) {
+        physx::PxShape *shape = nullptr;
+        auto *actor = controller->getActor();
+        // The controller is created with an actor holding exactly one shape, its capsule
+        if (actor && actor->getShapes(&shape, 1) == 1)
+            shape->setMaterials(&material, 1);
+    }
 }
 
-void QPhysXCharacterController::createMaterial(QPhysXWorld *physX)
+QPhysicsMaterial *QPhysXCharacterController::qtMaterial() const
 {
-    createMaterialFromQtMaterial(
-            physX, static_cast<QCharacterController *>(frontendNode)->physicsMaterial());
+    return static_cast<QCharacterController *>(frontendNode)->physicsMaterial();
 }
 
 bool QPhysXCharacterController::debugGeometryCapability()

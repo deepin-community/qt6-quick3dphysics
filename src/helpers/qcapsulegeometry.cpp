@@ -3,6 +3,7 @@
 
 // Based on:
 // https://behreajj.medium.com/making-a-capsule-mesh-via-script-in-five-3d-environments-c2214abf02db
+// Qt-Security score:significant reason:default
 
 #include "qcapsulegeometry_p.h"
 
@@ -10,12 +11,69 @@
 
 QT_BEGIN_NAMESPACE
 
-CapsuleGeometry::CapsuleGeometry()
+/*!
+    \qmltype CapsuleGeometry
+    \inqmlmodule QtQuick3D.Physics.Helpers
+    \inherits Geometry
+    \since 6.4
+    \brief A geometry for generating a capsule model.
+    \deprecated [6.10]
+
+    Deprecated, use \l{QtQuick3D.Helpers::CapsuleGeometry}
+    {QtQuick3D.Helpers.CapsuleGeometry} instead.
+
+    A geometry for generating a capsule model.
+*/
+
+/*! \qmlproperty bool CapsuleGeometry::enableNormals
+    \default true
+
+    Generate mesh face normals.
+*/
+
+/*! \qmlproperty bool CapsuleGeometry::enableUV
+    \default false
+
+    Generate mesh uv coordinates.
+*/
+
+/*! \qmlproperty int CapsuleGeometry::longitudes
+    \default 32
+
+    Number of longitudes, or meridians, distributed by azimuth. Values above 1024 are clamped.
+*/
+
+/*! \qmlproperty int CapsuleGeometry::latitudes
+    \default 16
+
+    Number of latitudes, distributed by inclination. Must be even. Values above 1024 are
+    clamped.
+*/
+
+/*! \qmlproperty int CapsuleGeometry::rings
+    \default 1
+
+    Number of sections in cylinder between hemispheres. Values above 1024 are clamped.
+*/
+
+/*! \qmlproperty real CapsuleGeometry::height
+    \default 100
+
+    Height of the middle cylinder on the y axis, excluding the hemispheres.
+*/
+
+/*! \qmlproperty real CapsuleGeometry::diameter
+    \default 100
+
+    Diameter on the xz plane.
+*/
+
+CapsuleGeometryPhysics::CapsuleGeometryPhysics()
 {
     updateData();
 }
 
-void CapsuleGeometry::setEnableNormals(bool enable)
+void CapsuleGeometryPhysics::setEnableNormals(bool enable)
 {
     if (m_enableNormals == enable)
         return;
@@ -26,7 +84,7 @@ void CapsuleGeometry::setEnableNormals(bool enable)
     update();
 }
 
-void CapsuleGeometry::setEnableUV(bool enable)
+void CapsuleGeometryPhysics::setEnableUV(bool enable)
 {
     if (m_enableUV == enable)
         return;
@@ -37,8 +95,10 @@ void CapsuleGeometry::setEnableUV(bool enable)
     update();
 }
 
-void CapsuleGeometry::setLongitudes(int longitudes)
+void CapsuleGeometryPhysics::setLongitudes(int longitudes)
 {
+    longitudes = qMin(longitudes, 1024);
+
     if (m_longitudes == longitudes)
         return;
 
@@ -48,8 +108,10 @@ void CapsuleGeometry::setLongitudes(int longitudes)
     update();
 }
 
-void CapsuleGeometry::setLatitudes(int latitudes)
+void CapsuleGeometryPhysics::setLatitudes(int latitudes)
 {
+    latitudes = qMin(latitudes, 1024);
+
     if (m_latitudes == latitudes)
         return;
 
@@ -59,8 +121,10 @@ void CapsuleGeometry::setLatitudes(int latitudes)
     update();
 }
 
-void CapsuleGeometry::setRings(int rings)
+void CapsuleGeometryPhysics::setRings(int rings)
 {
+    rings = qMin(rings, 1024);
+
     if (m_rings == rings)
         return;
 
@@ -70,7 +134,7 @@ void CapsuleGeometry::setRings(int rings)
     update();
 }
 
-void CapsuleGeometry::setHeight(float height)
+void CapsuleGeometryPhysics::setHeight(float height)
 {
     if (m_height == height)
         return;
@@ -81,7 +145,7 @@ void CapsuleGeometry::setHeight(float height)
     update();
 }
 
-void CapsuleGeometry::setDiameter(float diameter)
+void CapsuleGeometryPhysics::setDiameter(float diameter)
 {
     if (m_diameter == diameter)
         return;
@@ -102,7 +166,7 @@ struct Face
     uint32_t normalIdx = 0;
 };
 
-void CapsuleGeometry::updateData()
+void CapsuleGeometryPhysics::updateData()
 {
     clear();
 
@@ -240,13 +304,13 @@ void CapsuleGeometry::updateData()
     // Determine UV aspect ratio from the profile.
     float vtAspectRatio = 0.f;
     switch (m_uvProfile) {
-    case CapsuleGeometry::UvProfile::Fixed:
+    case CapsuleGeometryPhysics::UvProfile::Fixed:
         vtAspectRatio = 0.33333333f;
         break;
-    case CapsuleGeometry::UvProfile::Aspect:
+    case CapsuleGeometryPhysics::UvProfile::Aspect:
         vtAspectRatio = verifRad / (verifDepth + verifRad + verifRad);
         break;
-    case CapsuleGeometry::UvProfile::Uniform:
+    case CapsuleGeometryPhysics::UvProfile::Uniform:
         vtAspectRatio = (float)halfLats / (verifRingsp1 + verifLats);
         break;
     }
