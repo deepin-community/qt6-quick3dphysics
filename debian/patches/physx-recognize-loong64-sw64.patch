@@ -1,0 +1,31 @@
+Description: Teach bundled PhysX about loong64 and sw64 architectures
+ The bundled PhysX pxshared PxPreprocessor.h only knows x86/x64, ARM,
+ PPC, MIPS and WASM. LoongArch and Sunway hit #error "Unknown
+ architecture" during compilation.
+ .
+ Follow the existing mips64 pattern: map both to PX_X64 (plain LP64
+ bookkeeping) and add them to the PX_SIMD_DISABLED list so the scalar
+ code paths are used, exactly like the mips builds that have been
+ shipping in deepin since 6.8.
+Origin: other, deepin qt6-quick3dphysics packaging
+Forwarded: not-needed
+--- a/src/3rdparty/PhysX/pxshared/include/foundation/PxPreprocessor.h
++++ b/src/3rdparty/PhysX/pxshared/include/foundation/PxPreprocessor.h
+@@ -122,7 +122,7 @@
+ #define PX_ARM 1
+ #elif defined(__ppc__) || defined(_M_PPC) || defined(__CELLOS_LV2__)
+ #define PX_PPC 1
+-#elif defined(__mips__)
++#elif defined(__mips__) || defined(__loongarch__) || defined(__sw_64__)
+ #define PX_X64 1
+ #elif defined(__EMSCRIPTEN__)
+ #define PX_WASM
+@@ -151,7 +151,7 @@
+ #endif
+ 
+ /** Disable SIMD for webassembly, mips and arm64 */
+-#if defined(__EMSCRIPTEN__) || defined(__mips__) || defined(_M_ARM64) || defined(_M_ARM)
++#if defined(__EMSCRIPTEN__) || defined(__mips__) || defined(__loongarch__) || defined(__sw_64__) || defined(_M_ARM64) || defined(_M_ARM)
+ #define PX_SIMD_DISABLED 1
+ #endif
+ 
